@@ -14,8 +14,10 @@
     *{box-sizing:border-box}
     body {margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,sans-serif;background:var(--bg);color:var(--text)}
     .wrap{max-width:980px;margin:0 auto;padding:22px}
-    h1{margin:6px 0 14px}
-    .tabs{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+    header{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+    .logo{width:42px;height:42px;border-radius:10px;background:linear-gradient(135deg,var(--accent1),var(--accent2));display:grid;place-items:center;font-weight:900;color:#0b1120;cursor:pointer;user-select:none}
+    h1{margin:0}
+    .tabs{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0}
     .tabbtn{padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.08);background:#0e1322;color:var(--text);cursor:pointer}
     .tabbtn.active{background:linear-gradient(135deg,var(--accent1),var(--accent2));color:#0b1120;border:none}
     .panel{display:none}
@@ -35,7 +37,8 @@
     .links{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
     .linkbtn{font-size:.85rem;background:#0e1322;color:var(--text);border:1px solid rgba(255,255,255,.12);padding:6px 8px;border-radius:8px;text-decoration:none}
     .note{color:var(--muted);font-size:.9rem;margin-top:8px}
-    .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+    .chips{display:none;flex-wrap:wrap;gap:8px;margin-top:10px} /* hidden until user clicks Show genres */
+    .chips.show{display:flex}
     .gchip{background:#0e1322;border:1px solid rgba(255,255,255,.1);padding:8px 10px;border-radius:999px;cursor:pointer}
     .gchip.active{background:linear-gradient(135deg,var(--accent1),var(--accent2));color:#0b1120;border:none}
     .list{display:grid;gap:8px;margin-top:10px}
@@ -46,10 +49,14 @@
 </head>
 <body>
   <div class="wrap">
-    <h1>Streaming Hub</h1>
+    <header>
+      <div id="homeLogo" class="logo" title="Home">▶</div>
+      <h1>Streaming Hub</h1>
+    </header>
 
     <div class="tabs">
       <button class="tabbtn active" data-tab="search">Search</button>
+      <button class="tabbtn" data-tab="service">By Service</button>
       <button class="tabbtn" data-tab="genres">Browse by Genre</button>
       <button class="tabbtn" data-tab="actors">Browse by Actor</button>
     </div>
@@ -70,18 +77,42 @@
       </div>
     </section>
 
+    <!-- By Service -->
+    <section id="service" class="panel">
+      <div class="card">
+        <div class="row" style="margin-bottom:10px">
+          <select id="servicePicker" title="Choose a streaming service">
+            <option value="Netflix">Netflix</option>
+            <option value="Hulu">Hulu</option>
+            <option value="Disney+">Disney+</option>
+            <option value="Max">Max</option>
+            <option value="Amazon Prime Video">Amazon Prime Video</option>
+            <option value="Apple TV+">Apple TV+</option>
+            <option value="Peacock">Peacock</option>
+            <option value="Paramount+">Paramount+</option>
+            <option value="Crunchyroll">Crunchyroll</option>
+          </select>
+          <input id="serviceQuery" type="search" placeholder="Optional: filter by title…">
+          <button id="serviceGo">Search This Service</button>
+        </div>
+        <div class="small">Shows titles **available on the selected service** in your region. Add a title to narrow results.</div>
+        <div id="serviceResults" class="results"></div>
+      </div>
+    </section>
+
     <!-- Genres -->
     <section id="genres" class="panel">
       <div class="card">
-        <div class="row">
+        <div class="row" style="margin-bottom:10px">
           <select id="genreType">
             <option value="movie" selected>Movies</option>
             <option value="tv">TV</option>
           </select>
+          <button id="showGenresBtn">Show genres</button>
         </div>
         <div id="genreChips" class="chips"></div>
         <div id="genreResults" class="results"></div>
-        <div class="note">Tip: Pick a type (Movies/TV), then tap a genre chip.</div>
+        <div class="note">Genres are hidden until you press <em>Show genres</em>. Click a chip to load titles.</div>
       </div>
     </section>
 
@@ -98,7 +129,7 @@
       </div>
     </section>
 
-    <div class="note">Direct provider buttons open the service’s own search for the title. Availability varies by region/account.</div>
+    <div class="note">Provider buttons open the service’s own search page for the title. Availability varies by region/account.</div>
   </div>
 
   <script>
@@ -107,35 +138,29 @@
     const TMDB_BASE = "https://api.themoviedb.org/3";
     const REGION = "US";
 
-    // Normalize provider names to handle +/Plus variants, etc.
+    // Normalize provider names
     function norm(name){
       return (name || "")
-        .replace(/\s*\+\s*/g, "+")           // normalize plus spacing
-        .replace(/ plus$/i, "+")             // "Disney Plus" -> "Disney+"
-        .replace(/ plus$/i, "+")
+        .replace(/\s*\+\s*/g, "+")  // "Paramount + " -> "Paramount+"
+        .replace(/ plus$/i, "+")    // "Disney Plus" -> "Disney+"
         .replace(/\s+/g, " ")
         .trim();
     }
 
-    // Map provider name -> direct search URL template
+    // Direct search URLs per provider
     function directSearchURL(providerName, title){
       const n = norm(providerName);
       const q = encodeURIComponent(title);
-
-      // Direct, public search endpoints
       if (n === "Netflix") return `https://www.netflix.com/search?q=${q}`;
       if (n === "Hulu") return `https://www.hulu.com/search?q=${q}`;
-      if (n === "Disney+" || n === "Disney Plus") return `https://www.disneyplus.com/search?q=${q}`;
+      if (n === "Disney+") return `https://www.disneyplus.com/search?q=${q}`;
       if (n === "Peacock") return `https://www.peacocktv.com/search?q=${q}`;
-      if (n === "Paramount+" || n === "Paramount Plus") return `https://www.paramountplus.com/search/?q=${q}`;
+      if (n === "Paramount+") return `https://www.paramountplus.com/search/?q=${q}`;
       if (n === "Crunchyroll") return `https://www.crunchyroll.com/search?from=&q=${q}`;
-
-      // “Best effort” searches (no public search endpoint, so storefront search)
-      if (n === "Amazon Prime Video" || n === "Prime Video") return `https://www.amazon.com/s?k=${q}&i=instant-video`;
-      if (n === "Apple TV+" || n === "Apple TV Plus") return `https://tv.apple.com/us/search?term=${q}`;
-      if (n === "Max") return `https://www.google.com/search?q=site:max.com+${q}`; // Max doesn’t expose a reliable public search URL
-
-      // Fallback site search if unknown
+      if (n === "Amazon Prime Video") return `https://www.amazon.com/s?k=${q}&i=instant-video`;
+      if (n === "Apple TV+") return `https://tv.apple.com/us/search?term=${q}`;
+      if (n === "Max") return `https://www.google.com/search?q=site:max.com+${q}`; // no public search
+      // Fallback
       return `https://www.google.com/search?q=${encodeURIComponent(`"${title}"`)}+${encodeURIComponent(n)}+watch`;
     }
 
@@ -150,18 +175,18 @@
       return r.json();
     }
 
-    function makeProviderButtons(title, allProviders){
-      const uniqueNames = new Set();
+    function makeProviderButtons(title, providers){
+      const unique = new Set();
       const btns = [];
-      (allProviders || []).forEach(p=>{
+      (providers || []).forEach(p=>{
         const name = p.provider_name || "";
         const key = norm(name).toLowerCase();
-        if (uniqueNames.has(key)) return; // avoid duplicates across flatrate/buy/rent
-        uniqueNames.add(key);
+        if (unique.has(key)) return;
+        unique.add(key);
         const url = directSearchURL(name, title);
         btns.push(`<a class="linkbtn" target="_blank" rel="noopener" href="${url}">${safe(name)}</a>`);
       });
-      // Always include a general fallback
+      // Fallback
       const q = encodeURIComponent(`"${title}" watch`);
       btns.push(`<a class="linkbtn" target="_blank" rel="noopener" href="https://www.google.com/search?q=${q}">All providers</a>`);
       return btns.join("");
@@ -172,8 +197,6 @@
       const y = yearOf(item.release_date || item.first_air_date);
       const poster = img(item.poster_path);
       const media = item.media_type || (item.first_air_date ? "tv" : "movie");
-
-      // Combine flatrate + buy + rent (so you always get buttons)
       const us = provData?.results?.[REGION] || {};
       const combined = [...(us.flatrate||[]), ...(us.buy||[]), ...(us.rent||[])];
 
@@ -195,17 +218,14 @@
           </div>
         </div>
       `;
-
-      // Click the tile (but not the buttons) → open TMDB page
       el.addEventListener("click", (e)=>{
         if(e.target.closest("a")) return;
         window.open(`https://www.themoviedb.org/${media}/${item.id}`, "_blank", "noopener");
       });
-
       return el;
     }
 
-    // === SEARCH ===
+    // === MAIN SEARCH ===
     async function doSearch(){
       const q = document.getElementById("q").value.trim();
       if(!q) return;
@@ -213,10 +233,7 @@
       const out = document.getElementById("searchResults");
       out.innerHTML = "<div class='small'>Searching…</div>";
 
-      const endpoint =
-        type === "movie" ? "search/movie" :
-        type === "tv" ? "search/tv" : "search/multi";
-
+      const endpoint = type === "movie" ? "search/movie" : type === "tv" ? "search/tv" : "search/multi";
       const res = await fetch(`${TMDB_BASE}/${endpoint}?query=${encodeURIComponent(q)}`, auth);
       const data = await res.json();
 
@@ -231,19 +248,63 @@
       }
     }
 
-    // === GENRES ===
+    // === BY SERVICE SEARCH ===
+    async function doServiceSearch(){
+      const serviceName = norm(document.getElementById("servicePicker").value);
+      const q = document.getElementById("serviceQuery").value.trim();
+      const out = document.getElementById("serviceResults");
+      out.innerHTML = "<div class='small'>Searching titles on "+safe(serviceName)+"…</div>";
+
+      // Step 1: broad search (or discover popular if no query)
+      let items = [];
+      if (q) {
+        const res = await fetch(`${TMDB_BASE}/search/multi?query=${encodeURIComponent(q)}`, auth).then(r=>r.json());
+        items = (res.results || []).filter(x => (x.title||x.name) && (x.media_type!=="person"));
+      } else {
+        // Fallback discover popular mix (movies + tv)
+        const [popM, popT] = await Promise.all([
+          fetch(`${TMDB_BASE}/discover/movie?sort_by=popularity.desc`, auth).then(r=>r.json()),
+          fetch(`${TMDB_BASE}/discover/tv?sort_by=popularity.desc`, auth).then(r=>r.json())
+        ]);
+        items = [...(popM.results||[]).map(x=>({...x, media_type:"movie"})), ...(popT.results||[]).map(x=>({...x, media_type:"tv"}))];
+      }
+
+      // Step 2: filter by provider availability in REGION
+      out.innerHTML = "";
+      let shown = 0;
+      for (const it of items){
+        const media = it.media_type || (it.first_air_date ? "tv" : "movie");
+        const prov = await getProviders(it.id, media);
+        const us = prov?.results?.[REGION] || {};
+        const combined = [...(us.flatrate||[]), ...(us.buy||[]), ...(us.rent||[])];
+        const hasService = combined.some(p => norm(p.provider_name) === serviceName);
+        if (hasService){
+          out.appendChild(makeResultTile(it, prov));
+          shown++;
+        }
+        // show up to ~30 to keep it snappy
+        if (shown >= 30) break;
+      }
+      if (!shown){
+        out.innerHTML = "<div class='small'>No matches found on "+safe(serviceName)+" for that query/region.</div>";
+      }
+    }
+
+    // === GENRES (hidden until user clicks) ===
     async function loadGenres(){
+      if (window.__genresLoaded) return;
       const [gm, gt] = await Promise.all([
         fetch(`${TMDB_BASE}/genre/movie/list`, auth).then(r=>r.json()),
         fetch(`${TMDB_BASE}/genre/tv/list`, auth).then(r=>r.json())
       ]);
       window.__genres = { movie:(gm.genres||[]), tv:(gt.genres||[]) };
-      renderGenreChips();
+      window.__genresLoaded = true;
     }
 
     function renderGenreChips(){
       const type = document.getElementById("genreType").value;
       const holder = document.getElementById("genreChips");
+      holder.classList.add("show");
       holder.innerHTML = "";
       (window.__genres?.[type] || []).forEach(g=>{
         const b = document.createElement("button");
@@ -308,31 +369,45 @@
       }
     }
 
-    // === TABS & EVENTS ===
+    // === TABS & HOME ===
+    function activateTab(id){
+      document.querySelectorAll(".tabbtn").forEach(x=>x.classList.toggle("active", x.dataset.tab===id));
+      document.querySelectorAll(".panel").forEach(p=>p.classList.toggle("active", p.id===id));
+      window.scrollTo({top:0,behavior:"smooth"});
+    }
     document.querySelectorAll(".tabbtn").forEach(b=>{
-      b.addEventListener("click", ()=>{
-        document.querySelectorAll(".tabbtn").forEach(x=>x.classList.remove("active"));
-        b.classList.add("active");
-        const id = b.dataset.tab;
-        document.querySelectorAll(".panel").forEach(p=>p.classList.remove("active"));
-        document.getElementById(id).classList.add("active");
-      });
+      b.addEventListener("click", ()=>activateTab(b.dataset.tab));
+    });
+    document.getElementById("homeLogo").addEventListener("click", ()=>{
+      // Home: go to Search and clear any previous results
+      activateTab("search");
+      document.getElementById("q").value = "";
+      document.getElementById("searchResults").innerHTML = "";
     });
 
+    // === EVENTS ===
     document.getElementById("go").addEventListener("click", doSearch);
     document.getElementById("q").addEventListener("keydown", e=>{ if(e.key==="Enter") doSearch(); });
-    document.getElementById("genreType").addEventListener("change", renderGenreChips);
-    document.getElementById("actorGo").addEventListener("click", searchActors);
-    document.getElementById("actorQuery").addEventListener("keydown", e=>{ if(e.key==="Enter") searchActors(); });
+    document.getElementById("serviceGo").addEventListener("click", doServiceSearch);
+    document.getElementById("serviceQuery").addEventListener("keydown", e=>{ if(e.key==="Enter") doServiceSearch(); });
 
-    // === INIT ===
-    loadGenres();
+    document.getElementById("showGenresBtn").addEventListener("click", async ()=>{
+      await loadGenres();
+      renderGenreChips(); // only show after explicit click
+    });
+    document.getElementById("genreType").addEventListener("change", ()=>{
+      if (window.__genresLoaded && document.getElementById("genreChips").classList.contains("show")){
+        renderGenreChips();
+      }
+    });
+
+    // No auto-load of genres; chips remain hidden until user clicks "Show genres".
   </script>
 
   <!-- PWA SW registration; bump the query string when you update HTML so caches refresh -->
   <script>
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js?v=streamhub-directlinks-2').catch(()=>{});
+      navigator.serviceWorker.register('sw.js?v=streamhub-byservice-home-1').catch(()=>{});
     }
   </script>
 </body>

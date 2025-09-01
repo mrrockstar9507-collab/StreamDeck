@@ -4,18 +4,262 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Streaming Hub</title>
-  <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#0f1220">
+  <style>
+    :root{
+      --bg:#0f1220; --card:#171a2b; --muted:#9aa3b2; --text:#e9eef5; --accent:#6ea8fe; --accent-2:#9df0c2;
+      --radius:14px; --radius-sm:10px; --shadow:0 10px 30px rgba(0,0,0,.35);
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif}
+    a{color:inherit}
+    .container{max-width:1100px;margin:0 auto;padding:28px}
+    header{display:flex;gap:14px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:14px}
+    .title{display:flex;align-items:center;gap:12px}
+    .logo{width:42px;height:42px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:grid;place-items:center;font-weight:700;color:#0a0e1a}
+    .pill{font-size:.85rem;color:var(--muted)}
+    .grid{display:grid;grid-template-columns:repeat( auto-fit, minmax(220px,1fr) );gap:14px}
+    .card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;border:1px solid rgba(255,255,255,.06)}
+    .card h3{margin:.2rem 0 .6rem;font-size:1.05rem}
+    .row{display:flex;gap:10px;flex-wrap:wrap}
+    input,select,button{background:#0e1322;border:1px solid rgba(255,255,255,.08);color:var(--text);border-radius:var(--radius-sm);padding:12px 12px;font-size:1rem}
+    input,select{flex:1;min-width:200px}
+    button{cursor:pointer;white-space:nowrap}
+    button.primary{background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#071227;border:none}
+    .services{display:grid;grid-template-columns:repeat( auto-fit, minmax(180px,1fr) );gap:12px}
+    .svc{display:flex;align-items:center;gap:12px;padding:12px;border-radius:12px;background:#0e1322;border:1px solid rgba(255,255,255,.07)}
+    .badge{font-size:.8rem;color:var(--muted)}
+    .svc .actions{margin-left:auto;display:flex;gap:8px}
+    .svc .actions a, .svc .actions button{padding:8px 10px;border-radius:10px;border:1px solid rgba(255,255,255,.08);background:#111737;color:var(--text);font-size:.9rem;text-decoration:none}
+    .note{font-size:.9rem;color:var(--muted);line-height:1.5}
+    .player{display:grid;gap:12px}
+    iframe, video{width:100%;aspect-ratio:16/9;border:none;border-radius:12px;background:#000}
+    footer{margin-top:18px;color:var(--muted);font-size:.85rem}
+    .disclaimer{border:1px dashed rgba(255,255,255,.25);padding:12px;border-radius:12px;background:#0e1322}
+    .kbd{padding:.1rem .4rem;border:1px solid rgba(255,255,255,.2);border-bottom-width:2px;border-radius:6px;font-family:ui-monospace,Menlo,Consolas,monospace;background:#0b1120}
+  </style>
 </head>
 <body>
-  <h1>Streaming Hub</h1>
-  <p>Your quick launcher for streaming services.</p>
+  <div class="container">
+    <header>
+      <div class="title">
+        <div class="logo">▶</div>
+        <div>
+          <h1 style="margin:0;font-size:1.5rem;">Streaming Hub</h1>
+          <div class="pill">Quick-launch your favorite services • Search any service • Play your own videos</div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Universal Search -->
+    <section class="card">
+      <h3>Universal Search</h3>
+      <div class="row" style="margin-bottom:10px">
+        <input id="q" type="search" placeholder="Search for a show or movie…" aria-label="Search query" />
+        <select id="service">
+          <!-- Options are generated dynamically too; these are fallbacks if JS disabled -->
+          <option value="youtube">YouTube</option>
+          <option value="netflix">Netflix</option>
+          <option value="hulu">Hulu</option>
+          <option value="prime">Prime Video</option>
+          <option value="disney">Disney+</option>
+          <option value="max">Max</option>
+          <option value="appletv">Apple TV+</option>
+          <option value="peacock">Peacock</option>
+          <option value="paramount">Paramount+</option>
+          <option value="crunchyroll">Crunchyroll</option>
+        </select>
+        <button class="primary" id="go">Search</button>
+        <button id="openAll">Open in New Tab</button>
+      </div>
+      <div class="note">Tip: Press <span class="kbd">Enter</span> to search, or <span class="kbd">Shift</span> + <span class="kbd">Enter</span> to open results in a new tab. You may need to allow pop-ups for one-click opening.</div>
+    </section>
+
+    <!-- Services Launcher -->
+    <section class="card">
+      <h3>Services</h3>
+      <div class="services" id="services"></div>
+      <p class="note">These buttons open official sites. You may need to sign in on each site. Embedding most paid services is blocked by DRM and site security policies.</p>
+    </section>
+
+    <!-- Your Video / YouTube Embed -->
+    <section class="card player">
+      <h3>Play a Video You Own or a YouTube Video</h3>
+      <div class="row">
+        <input id="ytUrl" type="url" placeholder="Paste a YouTube URL to embed…" aria-label="YouTube URL"/>
+        <button id="loadYt" class="primary">Load YouTube</button>
+        <input id="filePicker" type="file" accept="video/*" />
+        <button id="playFile">Play Local File</button>
+      </div>
+      <div id="embedWrap">
+        <!-- YouTube iframe will appear here -->
+      </div>
+      <video id="filePlayer" controls hidden></video>
+      <div class="note">Only embed YouTube or play files you own/have rights to. Paid streaming services cannot be embedded here.</div>
+    </section>
+
+    <footer>
+      <div class="disclaimer">
+        <strong>Heads up:</strong> Netflix, Hulu, Disney+, Prime Video, Max, Apple TV+, Peacock, Paramount+, etc. do not allow third-party pages to stream their content via iframes. This hub safely opens their official sites and search pages in new tabs. That keeps everything legal and reliable.
+      </div>
+    </footer>
+  </div>
+
   <script>
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js')
-        .then(() => console.log("Service Worker registered"))
-        .catch(err => console.error("SW registration failed", err));
+    // Catalog of services with search/homepage rules
+    const SERVICES = [
+      {
+        id:"youtube", name:"YouTube",
+        home:"https://www.youtube.com/",
+        search:(q)=>`https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`,
+        embeddable:true
+      },
+      {
+        id:"netflix", name:"Netflix",
+        home:"https://www.netflix.com/",
+        search:(q)=>`https://www.netflix.com/search?q=${encodeURIComponent(q)}`
+      },
+      {
+        id:"hulu", name:"Hulu",
+        home:"https://www.hulu.com/",
+        search:(q)=>`https://www.hulu.com/search?q=${encodeURIComponent(q)}`
+      },
+      {
+        id:"prime", name:"Prime Video",
+        home:"https://www.amazon.com/Prime-Video/b?node=2676882011",
+        search:(q)=>`https://www.amazon.com/s?k=${encodeURIComponent(q)}&i=instant-video`
+      },
+      {
+        id:"disney", name:"Disney+",
+        home:"https://www.disneyplus.com/",
+        // Some services don't expose public search URLs reliably; use site: search as fallback.
+        search:(q)=>`https://www.google.com/search?q=${encodeURIComponent('site:disneyplus.com ' + q)}`
+      },
+      {
+        id:"max", name:"Max",
+        home:"https://www.max.com/",
+        search:(q)=>`https://www.google.com/search?q=${encodeURIComponent('site:max.com ' + q)}`
+      },
+      {
+        id:"appletv", name:"Apple TV+",
+        home:"https://tv.apple.com/",
+        search:(q)=>`https://www.google.com/search?q=${encodeURIComponent('site:tv.apple.com ' + q)}`
+      },
+      {
+        id:"peacock", name:"Peacock",
+        home:"https://www.peacocktv.com/",
+        search:(q)=>`https://www.peacocktv.com/search?query=${encodeURIComponent(q)}`
+      },
+      {
+        id:"paramount", name:"Paramount+",
+        home:"https://www.paramountplus.com/",
+        search:(q)=>`https://www.paramountplus.com/search/?q=${encodeURIComponent(q)}`
+      },
+      {
+        id:"crunchyroll", name:"Crunchyroll",
+        home:"https://www.crunchyroll.com/",
+        search:(q)=>`https://www.crunchyroll.com/search?from=&q=${encodeURIComponent(q)}`
+      }
+    ];
+
+    // Populate services grid
+    const servicesDiv = document.getElementById('services');
+    SERVICES.forEach(s=>{
+      const el = document.createElement('div');
+      el.className='svc';
+      el.innerHTML = `
+        <div>
+          <div style="font-weight:600">${s.name}</div>
+          <div class="badge">${new URL(s.home).hostname.replace('www.','')}</div>
+        </div>
+        <div class="actions">
+          <a href="${s.home}" target="_blank" rel="noopener">Open</a>
+          <button data-id="${s.id}" class="quickSearch">Search</button>
+        </div>
+      `;
+      servicesDiv.appendChild(el);
+    });
+
+    // Build <select> from SERVICES
+    const select = document.getElementById('service');
+    select.innerHTML = SERVICES.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
+
+    // Search handlers
+    const q = document.getElementById('q');
+    const go = document.getElementById('go');
+    const openAll = document.getElementById('openAll');
+
+    function getServiceById(id){ return SERVICES.find(s=>s.id===id); }
+
+    function openSearch(serviceId, query, newTab=true){
+      const svc = getServiceById(serviceId);
+      const url = (query && svc.search) ? svc.search(query) : svc.home;
+      if(newTab){ window.open(url, '_blank', 'noopener'); }
+      else{ window.location.href = url; }
     }
+
+    go.addEventListener('click', ()=> openSearch(select.value, q.value, true));
+    q.addEventListener('keydown', (e)=>{
+      if(e.key==='Enter'){
+        const newTab = !e.shiftKey ? true : true; // always open new tab for convenience
+        openSearch(select.value, q.value, newTab);
+      }
+    });
+
+    openAll.addEventListener('click', ()=>{
+      // Attempt to open search on the selected service in a new tab
+      openSearch(select.value, q.value, true);
+    });
+
+    // QuickSearch buttons per service
+    document.addEventListener('click', (e)=>{
+      const btn = e.target.closest('.quickSearch');
+      if(!btn) return;
+      const id = btn.getAttribute('data-id');
+      const query = prompt(`Search ${getServiceById(id).name} for:`, q.value || '');
+      if(query!==null){ openSearch(id, query, true); }
+    });
+
+    // YouTube embed
+    const ytInput = document.getElementById('ytUrl');
+    const loadYt = document.getElementById('loadYt');
+    const embedWrap = document.getElementById('embedWrap');
+    const filePicker = document.getElementById('filePicker');
+    const filePlayer = document.getElementById('filePlayer');
+    const playFile = document.getElementById('playFile');
+
+    function extractYouTubeId(url){
+      try{
+        const u = new URL(url);
+        if(u.hostname.includes('youtu.be')) return u.pathname.slice(1);
+        if(u.searchParams.get('v')) return u.searchParams.get('v');
+        // Fallback for /embed/VIDEOID or /shorts/VIDEOID
+        const parts = u.pathname.split('/');
+        const idx = parts.findIndex(p=>p==='embed' || p==='shorts');
+        if(idx>=0 && parts[idx+1]) return parts[idx+1];
+      }catch(e){}
+      return null;
+    }
+
+    loadYt.addEventListener('click', ()=>{
+      const id = extractYouTubeId(ytInput.value.trim());
+      if(!id){ alert('Please paste a valid YouTube URL.'); return; }
+      filePlayer.hidden = true;
+      filePlayer.pause();
+      embedWrap.innerHTML = `<iframe
+        src="https://www.youtube.com/embed/${encodeURIComponent(id)}"
+        title="YouTube video player" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowfullscreen loading="lazy"></iframe>`;
+    });
+
+    playFile.addEventListener('click', ()=>{
+      const file = filePicker.files?.[0];
+      if(!file){ alert('Choose a local video file first.'); return; }
+      embedWrap.innerHTML = '';
+      const url = URL.createObjectURL(file);
+      filePlayer.src = url;
+      filePlayer.hidden = false;
+      filePlayer.play().catch(()=>{ /* autoplay might be blocked */ });
+    });
   </script>
 </body>
 </html>

@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Streaming Hub</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0f1220">
+</head>
+<body>
+  <h1>Streaming Hub</h1>
+  <p>Your quick launcher for streaming services.</p>
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js')
+        .then(() => console.log("Service Worker registered"))
+        .catch(err => console.error("SW registration failed", err));
+    }
+  </script>
+</body>
+</html>

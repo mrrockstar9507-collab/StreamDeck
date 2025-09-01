@@ -7,90 +7,321 @@
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#0f1220">
   <style>
-    body {margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,sans-serif;background:#0f1220;color:#e9eef5;display:flex;flex-direction:column;align-items:center;padding:20px}
-    h1 {margin:10px 0}
-    .search-box {display:flex;gap:10px;width:100%;max-width:600px;margin:10px 0}
-    input[type="search"] {flex:1;padding:12px;border-radius:10px;border:none;background:#171a2b;color:#fff;font-size:1rem}
-    button {padding:12px 18px;border:none;border-radius:10px;background:linear-gradient(135deg,#6ea8fe,#9df0c2);color:#0f1220;font-weight:600;cursor:pointer}
-    .results {display:grid;gap:16px;width:100%;max-width:700px;margin-top:20px}
-    .card {display:flex;gap:12px;background:#171a2b;border-radius:14px;padding:10px;border:1px solid rgba(255,255,255,.08);cursor:pointer}
-    .card img {width:90px;border-radius:10px;object-fit:cover}
-    .card div {display:flex;flex-direction:column;justify-content:center}
-    .providers {font-size:.85rem;color:#9aa3b2;margin-top:4px}
-    .providers span {background:#111737;padding:2px 6px;margin:2px;border-radius:6px;display:inline-block}
+    :root{
+      --bg:#0f1220; --card:#171a2b; --text:#e9eef5; --muted:#9aa3b2; --chip:#111737;
+      --accent1:#6ea8fe; --accent2:#9df0c2;
+      --radius:14px;
+    }
+    *{box-sizing:border-box}
+    body {margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,sans-serif;background:var(--bg);color:var(--text)}
+    .wrap{max-width:980px;margin:0 auto;padding:22px}
+    h1{margin:6px 0 14px}
+    .tabs{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+    .tabbtn{padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.08);background:#0e1322;color:var(--text);cursor:pointer}
+    .tabbtn.active{background:linear-gradient(135deg,var(--accent1),var(--accent2));color:#0b1120;border:none}
+    .panel{display:none}
+    .panel.active{display:block}
+    .card{background:var(--card);border-radius:var(--radius);border:1px solid rgba(255,255,255,.08);padding:16px}
+    .search-box{display:flex;gap:10px}
+    input[type="search"],input[type="text"],select{flex:1;min-width:200px;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,.08);background:#0e1322;color:#fff}
+    button{padding:12px 16px;border-radius:10px;border:none;background:linear-gradient(135deg,var(--accent1),var(--accent2));color:#0b1120;font-weight:700;cursor:pointer}
+    .results{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-top:14px}
+    .tile{display:flex;gap:12px;background:#151a2b;border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:10px}
+    .tile img{width:90px;height:135px;border-radius:10px;object-fit:cover;background:#000}
+    .meta{display:flex;flex-direction:column;gap:6px}
+    .title{font-weight:700}
+    .sub{color:var(--muted);font-size:.9rem}
+    .providers{display:flex;flex-wrap:wrap;gap:6px}
+    .chip{background:var(--chip);padding:4px 8px;border-radius:8px;border:1px solid rgba(255,255,255,.08);font-size:.85rem}
+    .links{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+    .linkbtn{font-size:.85rem;background:#0e1322;color:var(--text);border:1px solid rgba(255,255,255,.12);padding:6px 8px;border-radius:8px;text-decoration:none}
+    .row{display:flex;gap:10px;flex-wrap:wrap}
+    .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+    .gchip{background:#0e1322;border:1px solid rgba(255,255,255,.1);padding:8px 10px;border-radius:999px;cursor:pointer}
+    .gchip.active{background:linear-gradient(135deg,var(--accent1),var(--accent2));color:#0b1120;border:none}
+    .note{color:var(--muted);font-size:.9rem;margin-top:8px}
+    .list{display:grid;gap:8px;margin-top:10px}
+    .person{display:flex;align-items:center;gap:10px;padding:8px;border-radius:10px;background:#111737;border:1px solid rgba(255,255,255,.08);cursor:pointer}
+    .person img{width:44px;height:44px;border-radius:50%;object-fit:cover;background:#000}
+    .small{font-size:.9rem;color:var(--muted)}
   </style>
 </head>
 <body>
-  <h1>Streaming Hub</h1>
-  <div class="search-box">
-    <input type="search" id="query" placeholder="Search movies or TV shows...">
-    <button id="searchBtn">Search</button>
+  <div class="wrap">
+    <h1>Streaming Hub</h1>
+
+    <div class="tabs">
+      <button class="tabbtn active" data-tab="search">Search</button>
+      <button class="tabbtn" data-tab="genres">Browse by Genre</button>
+      <button class="tabbtn" data-tab="actors">Browse by Actor</button>
+    </div>
+
+    <!-- Search Panel -->
+    <section id="search" class="panel active">
+      <div class="card">
+        <div class="row" style="margin-bottom:10px">
+          <input id="q" type="search" placeholder="Search movies or TV shows…">
+          <select id="searchType">
+            <option value="multi" selected>All</option>
+            <option value="movie">Movies</option>
+            <option value="tv">TV</option>
+          </select>
+          <button id="go">Search</button>
+        </div>
+        <div id="searchResults" class="results"></div>
+      </div>
+    </section>
+
+    <!-- Genres Panel -->
+    <section id="genres" class="panel">
+      <div class="card">
+        <div class="row">
+          <select id="genreType">
+            <option value="movie" selected>Movies</option>
+            <option value="tv">TV</option>
+          </select>
+        </div>
+        <div id="genreChips" class="chips"></div>
+        <div id="genreResults" class="results"></div>
+        <div class="note">Tip: Pick a type (Movies/TV), then tap a genre chip.</div>
+      </div>
+    </section>
+
+    <!-- Actors Panel -->
+    <section id="actors" class="panel">
+      <div class="card">
+        <div class="row" style="margin-bottom:10px">
+          <input id="actorQuery" type="text" placeholder="Search for an actor…">
+          <button id="actorGo">Find Actor</button>
+        </div>
+        <div id="actorList" class="list"></div>
+        <div id="actorResults" class="results"></div>
+        <div class="note">Tap an actor to see their movies/TV roles.</div>
+      </div>
+    </section>
+
+    <div class="note">Provider links use TMDB/JustWatch data. Availability can vary by region/account.</div>
   </div>
-  <div class="results" id="results"></div>
 
   <script>
-    const API_KEY = "eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiI2NGIzNmM0ZDNjODJlMmRiYzIyNjQzOTNhZjFlZTU2YyIsIm5iZiI6MTc1Njc2NTU2NS4zNzY5OTk5LCJzdWIiOiI2OGI2MWQ3ZDM1MGMzZWVlZTViNGZhZTQiLCJzY29wZXMiOlsiYXBpX3JlYWQiXSwidmVyc2lvbiI6MX0.hdDZK83KYkHjo_zpD0SHKH0K86IeLkwIiBpWVmOzgww";
+    // === CONFIG ===
+    const TMDB_TOKEN = "eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiI2NGIzNmM0ZDNjODJlMmRiYzIyNjQzOTNhZjFlZTU2YyIsIm5iZiI6MTc1Njc2NTU2NS4zNzY5OTk5LCJzdWIiOiI2OGI2MWQ3ZDM1MGMzZWVlZTViNGZhZTQiLCJzY29wZXMiOlsiYXBpX3JlYWQiXSwidmVyc2lvbiI6MX0.hdDZK83KYkHjo_zpD0SHKH0K86IeLkwIiBpWVmOzgww";
     const TMDB_BASE = "https://api.themoviedb.org/3";
+    const REGION = "US"; // change if needed
 
-    async function searchTMDB(query) {
-      const url = `${TMDB_BASE}/search/multi?query=${encodeURIComponent(query)}`;
-      const res = await fetch(url, {
-        headers: { Authorization: `Bearer ${API_KEY}` }
+    // Provider -> domain map (for quick deep search links)
+    const PROVIDER_DOMAIN = {
+      "Netflix":"netflix.com",
+      "Hulu":"hulu.com",
+      "Disney Plus":"disneyplus.com",
+      "Max":"max.com",
+      "Amazon Prime Video":"primevideo.com",
+      "Apple TV Plus":"tv.apple.com",
+      "Peacock":"peacocktv.com",
+      "Paramount Plus":"paramountplus.com",
+      "Crunchyroll":"crunchyroll.com",
+      "STARZ":"starz.com",
+      "Showtime":"showtime.com",
+      "AMC+":"amcplus.com"
+    };
+
+    // === HELPERS ===
+    const auth = { headers: { Authorization: `Bearer ${TMDB_TOKEN}` } };
+    const img = (p, size="w185") => p ? `https://image.tmdb.org/t/p/${size}${p}` : "https://via.placeholder.com/90x135?text=No+Image";
+    const yearOf = (d) => d ? (d.split("-")[0]||"") : "";
+    const safe = (s) => (s||"").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+
+    function makeResultTile(item, provData){
+      const title = item.title || item.name || "Untitled";
+      const y = yearOf(item.release_date || item.first_air_date);
+      const poster = img(item.poster_path);
+      const media = item.media_type || (item.first_air_date ? "tv" : "movie");
+      // Providers
+      const us = provData?.results?.[REGION];
+      const flatrate = us?.flatrate || [];
+      const buy = us?.buy || [];
+      const rent = us?.rent || [];
+      const tmdbWatchLink = us?.link; // TMDB watch page (aggregates JustWatch links)
+
+      const el = document.createElement("div");
+      el.className = "tile";
+      el.innerHTML = `
+        <img src="${poster}" alt="">
+        <div class="meta">
+          <div class="title">${safe(title)}</div>
+          <div class="sub">${media.toUpperCase()} ${y ? "&middot; "+y : ""}</div>
+          <div class="providers">${
+            flatrate.length ? flatrate.map(p=>`<span class="chip">${safe(p.provider_name)}</span>`).join("") : `<span class="chip">No subscription info</span>`
+          }</div>
+          <div class="links">
+            ${tmdbWatchLink ? `<a class="linkbtn" target="_blank" rel="noopener" href="${tmdbWatchLink}">Watch options</a>` : ""}
+            ${makeProviderSearchLinks(title, flatrate)}
+          </div>
+        </div>
+      `;
+
+      // Click anywhere else to open TMDB title page
+      el.addEventListener("click", (e)=>{
+        // avoid intercepting clicks on links
+        if(e.target.closest("a")) return;
+        window.open(`https://www.themoviedb.org/${media}/${item.id}`, "_blank", "noopener");
       });
-      return res.json();
+
+      return el;
     }
 
-    async function getWatchProviders(id, mediaType) {
-      const url = `${TMDB_BASE}/${mediaType}/${id}/watch/providers`;
-      const res = await fetch(url, {
-        headers: { Authorization: `Bearer ${API_KEY}` }
-      });
-      return res.json();
-    }
-
-    async function handleSearch() {
-      const query = document.getElementById("query").value.trim();
-      if(!query) return;
-      const resultsDiv = document.getElementById("results");
-      resultsDiv.innerHTML = "Searching...";
-      const data = await searchTMDB(query);
-      resultsDiv.innerHTML = "";
-      for(const item of data.results) {
-        if(!item.title && !item.name) continue;
-        const card = document.createElement("div");
-        card.className = "card";
-        const poster = item.poster_path 
-          ? `https://image.tmdb.org/t/p/w185${item.poster_path}` 
-          : "https://via.placeholder.com/90x135?text=No+Image";
-        card.innerHTML = `
-          <img src="${poster}">
-          <div>
-            <strong>${item.title || item.name}</strong>
-            <div>${(item.release_date || item.first_air_date || "").split("-")[0] || ""}</div>
-            <div class="providers">Loading providers...</div>
-          </div>`;
-        resultsDiv.appendChild(card);
-
-        // Fetch streaming providers
-        const prov = await getWatchProviders(item.id, item.media_type);
-        const providersDiv = card.querySelector(".providers");
-        if(prov.results && prov.results.US && prov.results.US.flatrate) {
-          providersDiv.innerHTML = prov.results.US.flatrate.map(p => `<span>${p.provider_name}</span>`).join("");
-        } else {
-          providersDiv.innerHTML = "No streaming info available";
+    function makeProviderSearchLinks(title, providers){
+      const q = encodeURIComponent(`"${title}"`);
+      const buttons = [];
+      (providers || []).forEach(p=>{
+        const domain = PROVIDER_DOMAIN[p.provider_name];
+        if(domain){
+          buttons.push(`<a class="linkbtn" target="_blank" rel="noopener" href="https://www.google.com/search?q=site:${domain}+${q}">${safe(p.provider_name)} search</a>`);
         }
+      });
+      // Always include a general “All providers” search as fallback
+      buttons.push(`<a class="linkbtn" target="_blank" rel="noopener" href="https://www.google.com/search?q=${q}+watch">Search everywhere</a>`);
+      return buttons.join("");
+    }
 
-        // Open TMDB page on click
-        card.addEventListener("click", () => {
-          window.open(`https://www.themoviedb.org/${item.media_type}/${item.id}`, "_blank");
-        });
+    async function getProviders(id, mediaType){
+      const r = await fetch(`${TMDB_BASE}/${mediaType}/${id}/watch/providers`, auth);
+      return r.json();
+    }
+
+    // === SEARCH ===
+    async function doSearch(){
+      const q = document.getElementById("q").value.trim();
+      if(!q) return;
+      const type = document.getElementById("searchType").value;
+      const out = document.getElementById("searchResults");
+      out.innerHTML = "<div class='small'>Searching…</div>";
+
+      const endpoint =
+        type === "movie" ? "search/movie" :
+        type === "tv" ? "search/tv" : "search/multi";
+
+      const res = await fetch(`${TMDB_BASE}/${endpoint}?query=${encodeURIComponent(q)}`, auth);
+      const data = await res.json();
+
+      out.innerHTML = "";
+      const items = (data.results || []).filter(x => (x.title||x.name) && (x.media_type!=="person"));
+      if(!items.length){ out.innerHTML = "<div class='small'>No results.</div>"; return; }
+
+      for(const it of items){
+        const media = it.media_type || (it.first_air_date ? "tv" : "movie");
+        const prov = await getProviders(it.id, media);
+        out.appendChild(makeResultTile(it, prov));
       }
     }
 
-    document.getElementById("searchBtn").addEventListener("click", handleSearch);
-    document.getElementById("query").addEventListener("keydown", e => {
-      if(e.key === "Enter") handleSearch();
+    // === GENRES ===
+    async function loadGenres(){
+      // fetch both lists once
+      const [gm, gt] = await Promise.all([
+        fetch(`${TMDB_BASE}/genre/movie/list`, auth).then(r=>r.json()),
+        fetch(`${TMDB_BASE}/genre/tv/list`, auth).then(r=>r.json())
+      ]);
+      window.__genres = { movie:(gm.genres||[]), tv:(gt.genres||[]) };
+      renderGenreChips();
+    }
+
+    function renderGenreChips(){
+      const type = document.getElementById("genreType").value;
+      const holder = document.getElementById("genreChips");
+      holder.innerHTML = "";
+      (window.__genres?.[type] || []).forEach(g=>{
+        const b = document.createElement("button");
+        b.className = "gchip";
+        b.textContent = g.name;
+        b.addEventListener("click", ()=>{
+          [...holder.children].forEach(c=>c.classList.remove("active"));
+          b.classList.add("active");
+          discoverByGenre(type, g.id);
+        });
+        holder.appendChild(b);
+      });
+    }
+
+    async function discoverByGenre(type, genreId){
+      const out = document.getElementById("genreResults");
+      out.innerHTML = "<div class='small'>Loading…</div>";
+      const url = `${TMDB_BASE}/discover/${type}?with_genres=${genreId}&sort_by=popularity.desc`;
+      const data = await fetch(url, auth).then(r=>r.json());
+      out.innerHTML = "";
+      for(const it of (data.results || [])){
+        const media = type; // known
+        const prov = await getProviders(it.id, media);
+        out.appendChild(makeResultTile({...it, media_type:type}, prov));
+      }
+    }
+
+    // === ACTORS ===
+    async function searchActors(){
+      const q = document.getElementById("actorQuery").value.trim();
+      if(!q) return;
+      const list = document.getElementById("actorList");
+      const res = await fetch(`${TMDB_BASE}/search/person?query=${encodeURIComponent(q)}`, auth).then(r=>r.json());
+      const people = res.results || [];
+      list.innerHTML = "";
+      if(!people.length){ list.innerHTML = "<div class='small'>No actors found.</div>"; return; }
+      people.slice(0,12).forEach(p=>{
+        const row = document.createElement("div");
+        row.className = "person";
+        row.innerHTML = `
+          <img src="${img(p.profile_path,'w185')}" alt="">
+          <div>
+            <div><strong>${safe(p.name)}</strong></div>
+            <div class="small">${(p.known_for_department||'').toUpperCase()}</div>
+          </div>
+        `;
+        row.addEventListener("click", ()=>loadActorCredits(p.id));
+        list.appendChild(row);
+      });
+      document.getElementById("actorResults").innerHTML = "";
+    }
+
+    async function loadActorCredits(personId){
+      const out = document.getElementById("actorResults");
+      out.innerHTML = "<div class='small'>Loading filmography…</div>";
+      const data = await fetch(`${TMDB_BASE}/person/${personId}/combined_credits`, auth).then(r=>r.json());
+      out.innerHTML = "";
+      // prioritize acting roles and sort by popularity
+      const roles = (data.cast || []).sort((a,b)=>(b.popularity||0)-(a.popularity||0)).slice(0,30);
+      for(const it of roles){
+        const media = it.media_type || (it.first_air_date ? "tv" : "movie");
+        const prov = await getProviders(it.id, media);
+        out.appendChild(makeResultTile(it, prov));
+      }
+    }
+
+    // === TABS ===
+    document.querySelectorAll(".tabbtn").forEach(b=>{
+      b.addEventListener("click", ()=>{
+        document.querySelectorAll(".tabbtn").forEach(x=>x.classList.remove("active"));
+        b.classList.add("active");
+        const id = b.dataset.tab;
+        document.querySelectorAll(".panel").forEach(p=>p.classList.remove("active"));
+        document.getElementById(id).classList.add("active");
+      });
     });
+
+    // === EVENTS ===
+    document.getElementById("go").addEventListener("click", doSearch);
+    document.getElementById("q").addEventListener("keydown", e=>{ if(e.key==="Enter") doSearch(); });
+    document.getElementById("genreType").addEventListener("change", renderGenreChips);
+    document.getElementById("actorGo").addEventListener("click", searchActors);
+    document.getElementById("actorQuery").addEventListener("keydown", e=>{ if(e.key==="Enter") searchActors(); });
+
+    // === INIT ===
+    loadGenres();
+  </script>
+
+  <!-- PWA registration (optional; keep if you already use manifest+sw.js) -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js?v=streamhub-genres-actors-1').catch(()=>{});
+    }
   </script>
 </body>
 </html>

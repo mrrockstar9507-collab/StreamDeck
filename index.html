@@ -3,57 +3,172 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Streaming Hub</title>
+  <title>StreamDeck</title>
   <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#0f1220">
+  <meta name="theme-color" content="#101429">
   <style>
     :root{
-      --bg:#0f1220; --card:#171a2b; --text:#e9eef5; --muted:#9aa3b2; --chip:#111737;
-      --accent1:#6ea8fe; --accent2:#9df0c2; --radius:14px;
+      /* Brighter neon-ish palette */
+      --bg:#101429;
+      --card:#171c36;
+      --text:#f2f6ff;
+      --muted:#b9c2d9;
+      --chip:#11173a;
+      --accent1:#7dc4ff; /* bright sky */
+      --accent2:#ff8bd6; /* magenta */
+      --accent3:#a7ff9f; /* neon green */
+      --radius:16px;
+      --shadow:0 12px 28px rgba(0,0,0,.35);
     }
     *{box-sizing:border-box}
-    body {margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,sans-serif;background:var(--bg);color:var(--text)}
-    .wrap{max-width:980px;margin:0 auto;padding:22px}
-    header{display:flex;align-items:center;gap:12px;margin-bottom:10px}
-    .logo{width:42px;height:42px;border-radius:10px;background:linear-gradient(135deg,var(--accent1),var(--accent2));display:grid;place-items:center;font-weight:900;color:#0b1120;cursor:pointer;user-select:none}
-    h1{margin:0}
-    .tabs{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0}
-    .tabbtn{padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.08);background:#0e1322;color:var(--text);cursor:pointer}
-    .tabbtn.active{background:linear-gradient(135deg,var(--accent1),var(--accent2));color:#0b1120;border:none}
-    .panel{display:none}
+    html,body{height:100%}
+    body {margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);overflow-x:hidden}
+    a{color:inherit}
+    .wrap{max-width:1100px;margin:0 auto;padding:22px;position:relative}
+
+    /* Header / logo */
+    header{position:relative;z-index:2;display:flex;align-items:center;gap:12px;margin-bottom:8px}
+    .logo{width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,var(--accent1),var(--accent2));display:grid;place-items:center;font-weight:900;color:#0b1120;cursor:pointer;user-select:none;box-shadow:var(--shadow)}
+    h1{margin:0;font-size:1.7rem;letter-spacing:.2px}
+
+    /* Tabs */
+    .tabs{position:relative;z-index:2;display:flex;gap:10px;flex-wrap:wrap;margin:14px 0}
+    .tabbtn{padding:10px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.1);background:#122053;color:var(--text);cursor:pointer}
+    .tabbtn.active{background:linear-gradient(135deg,var(--accent1),var(--accent2));color:#08112e;border:none}
+
+    /* Panels & Cards */
+    .panel{display:none;position:relative;z-index:2}
     .panel.active{display:block}
-    .card{background:var(--card);border-radius:var(--radius);border:1px solid rgba(255,255,255,.08);padding:16px}
+    .card{background:var(--card);border-radius:var(--radius);border:1px solid rgba(255,255,255,.09);padding:16px;box-shadow:var(--shadow)}
     .row{display:flex;gap:10px;flex-wrap:wrap}
-    input[type="search"],input[type="text"],select{flex:1;min-width:200px;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,.08);background:#0e1322;color:#fff}
-    button{padding:12px 16px;border-radius:10px;border:none;background:linear-gradient(135deg,var(--accent1),var(--accent2));color:#0b1120;font-weight:700;cursor:pointer}
-    .results{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-top:14px}
-    .tile{display:flex;gap:12px;background:#151a2b;border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:10px}
-    .tile img{width:90px;height:135px;border-radius:10px;object-fit:cover;background:#000}
+    input[type="search"],input[type="text"],select{flex:1;min-width:200px;padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,.12);background:#0e1a44;color:#fff}
+    button{padding:12px 16px;border-radius:12px;border:none;background:linear-gradient(135deg,var(--accent2),var(--accent1));color:#0b122b;font-weight:800;cursor:pointer;box-shadow:var(--shadow)}
+    .results{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;margin-top:16px}
+    .tile{display:flex;gap:12px;background:#141a3a;border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:10px}
+    .tile img{width:100px;height:150px;border-radius:10px;object-fit:cover;background:#000}
     .meta{display:flex;flex-direction:column;gap:6px}
-    .title{font-weight:700}
-    .sub{color:var(--muted);font-size:.9rem}
+    .title{font-weight:800}
+    .sub{color:var(--accent1);font-size:.95rem}
     .providers{display:flex;flex-wrap:wrap;gap:6px}
-    .chip{background:var(--chip);padding:4px 8px;border-radius:8px;border:1px solid rgba(255,255,255,.08);font-size:.85rem}
+    .chip{background:var(--chip);padding:4px 8px;border-radius:999px;border:1px solid rgba(255,255,255,.08);font-size:.85rem}
     .links{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
-    .linkbtn{font-size:.85rem;background:#0e1322;color:var(--text);border:1px solid rgba(255,255,255,.12);padding:6px 8px;border-radius:8px;text-decoration:none}
+    .linkbtn{font-size:.85rem;background:#0e1a44;color:var(--text);border:1px solid rgba(255,255,255,.14);padding:6px 10px;border-radius:999px;text-decoration:none}
     .note{color:var(--muted);font-size:.9rem;margin-top:8px}
-    .chips{display:none;flex-wrap:wrap;gap:8px;margin-top:10px} /* hidden until user clicks Show genres */
+
+    /* Genres (hidden until click) */
+    .chips{display:none;flex-wrap:wrap;gap:8px;margin-top:10px}
     .chips.show{display:flex}
-    .gchip{background:#0e1322;border:1px solid rgba(255,255,255,.1);padding:8px 10px;border-radius:999px;cursor:pointer}
-    .gchip.active{background:linear-gradient(135deg,var(--accent1),var(--accent2));color:#0b1120;border:none}
+    .gchip{background:#0e1a44;border:1px solid rgba(255,255,255,.16);padding:8px 12px;border-radius:999px;cursor:pointer}
+    .gchip.active{background:linear-gradient(135deg,var(--accent3),var(--accent1));color:#06132c;border:none}
+
+    /* Actor list */
     .list{display:grid;gap:8px;margin-top:10px}
-    .person{display:flex;align-items:center;gap:10px;padding:8px;border-radius:10px;background:#111737;border:1px solid rgba(255,255,255,.08);cursor:pointer}
-    .person img{width:44px;height:44px;border-radius:50%;object-fit:cover;background:#000}
+    .person{display:flex;align-items:center;gap:10px;padding:8px;border-radius:12px;background:#0f1a40;border:1px solid rgba(255,255,255,.1);cursor:pointer}
+    .person img{width:48px;height:48px;border-radius:50%;object-fit:cover;background:#000}
     .small{font-size:.9rem;color:var(--muted)}
+
+    /* Hero + Falling posters */
+    .hero{position:relative;z-index:2;margin:8px 0 16px}
+    .hero-card{display:grid;grid-template-columns:1.2fr 1fr;gap:14px;align-items:center;background:linear-gradient(135deg,rgba(125,196,255,.14),rgba(255,139,214,.14));border:1px solid rgba(255,255,255,.18);border-radius:18px;padding:16px}
+    @media (max-width:900px){ .hero-card{grid-template-columns:1fr;}}
+    .hero h2{margin:0 0 6px}
+    .hero p{margin:0;color:var(--muted)}
+    #falling-bg{position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.25}
+    .poster{position:absolute;top:-250px;width:130px;height:195px;border-radius:10px;background:#000;box-shadow:0 12px 30px rgba(0,0,0,.5);transform:translateY(-200px) rotate(0deg);animation:fall linear forwards}
+    @keyframes fall{
+      to{ transform: translateY(140vh) rotate(var(--rot)); opacity:.95 }
+    }
   </style>
 </head>
 <body>
+  <!-- Falling posters background -->
+  <div id="falling-bg"></div>
+
   <div class="wrap">
     <header>
       <div id="homeLogo" class="logo" title="Home">▶</div>
-      <h1>Streaming Hub</h1>
+      <h1>StreamDeck</h1>
     </header>
 
+    <!-- Hero section with full-color SVG illustration -->
+    <section class="hero">
+      <div class="hero-card">
+        <div>
+          <h2>Your all-in-one streaming launcher</h2>
+          <p>Search by title, browse by genre, or filter by streaming service—without leaving the page.</p>
+        </div>
+        <div aria-hidden="true">
+          <!-- Full-color SVG: person on a couch on a big deck watching TV -->
+          <svg viewBox="0 0 640 360" width="100%" height="100%" style="border-radius:14px">
+            <defs>
+              <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#76c8ff"/>
+                <stop offset="100%" stop-color="#ffe2b8"/>
+              </linearGradient>
+              <linearGradient id="sea" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stop-color="#4bb1ff"/>
+                <stop offset="100%" stop-color="#2a6bff"/>
+              </linearGradient>
+              <linearGradient id="deck" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stop-color="#c8905c"/>
+                <stop offset="100%" stop-color="#a86a3a"/>
+              </linearGradient>
+              <linearGradient id="tvgrad" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#7dc4ff"/>
+                <stop offset="100%" stop-color="#ff8bd6"/>
+              </linearGradient>
+            </defs>
+            <!-- sky & sea -->
+            <rect x="0" y="0" width="640" height="220" fill="url(#sky)"/>
+            <rect x="0" y="220" width="640" height="40" fill="url(#sea)" opacity="0.9"/>
+            <!-- deck boards -->
+            <g transform="translate(0,200)">
+              <rect x="0" y="40" width="640" height="160" fill="url(#deck)"/>
+              <g opacity=".3">
+                <rect x="0" y="70" width="640" height="2" fill="#000"/>
+                <rect x="0" y="100" width="640" height="2" fill="#000"/>
+                <rect x="0" y="130" width="640" height="2" fill="#000"/>
+              </g>
+              <!-- railing -->
+              <g fill="#d7b28a">
+                <rect x="0" y="30" width="640" height="6"/>
+                <g opacity=".8">
+                  <rect x="40" y="0" width="8" height="36"/>
+                  <rect x="140" y="0" width="8" height="36"/>
+                  <rect x="240" y="0" width="8" height="36"/>
+                  <rect x="340" y="0" width="8" height="36"/>
+                  <rect x="440" y="0" width="8" height="36"/>
+                  <rect x="540" y="0" width="8" height="36"/>
+                </g>
+              </g>
+            </g>
+            <!-- TV screen on deck -->
+            <g transform="translate(420,160)">
+              <rect x="-80" y="-60" width="160" height="100" rx="10" fill="#0b1026" stroke="#2d3d7a" stroke-width="3"/>
+              <rect x="-72" y="-52" width="144" height="84" rx="8" fill="url(#tvgrad)"/>
+              <rect x="-18" y="44" width="36" height="8" rx="4" fill="#444b77"/>
+              <rect x="-4" y="52" width="8" height="14" rx="2" fill="#2d3d7a"/>
+            </g>
+            <!-- Couch & person -->
+            <g transform="translate(180,210)">
+              <!-- couch -->
+              <rect x="-110" y="10" width="200" height="60" rx="12" fill="#3a3f74"/>
+              <rect x="-120" y="50" width="220" height="40" rx="12" fill="#323869"/>
+              <!-- person -->
+              <circle cx="-20" cy="20" r="14" fill="#ffc7a3"/>
+              <path d="M -35 30 q 15 12 30 0 v 28 h -30 z" fill="#6e77c8"/>
+              <path d="M -60 70 h 30 v 14 h -30 z" fill="#1b2047"/>
+              <path d="M 5 70 h 30 v 14 h -30 z" fill="#1b2047"/>
+              <!-- snack table -->
+              <rect x="-160" y="44" width="30" height="6" fill="#704d2c"/>
+              <rect x="-155" y="50" width="20" height="18" fill="#8a5a33"/>
+            </g>
+          </svg>
+        </div>
+      </div>
+    </section>
+
+    <!-- Tabs -->
     <div class="tabs">
       <button class="tabbtn active" data-tab="search">Search</button>
       <button class="tabbtn" data-tab="service">By Service</button>
@@ -61,7 +176,7 @@
       <button class="tabbtn" data-tab="actors">Browse by Actor</button>
     </div>
 
-    <!-- Search -->
+    <!-- SEARCH -->
     <section id="search" class="panel active">
       <div class="card">
         <div class="row" style="margin-bottom:10px">
@@ -77,7 +192,7 @@
       </div>
     </section>
 
-    <!-- By Service -->
+    <!-- BY SERVICE (now with Type + Genre) -->
     <section id="service" class="panel">
       <div class="card">
         <div class="row" style="margin-bottom:10px">
@@ -92,15 +207,22 @@
             <option value="Paramount+">Paramount+</option>
             <option value="Crunchyroll">Crunchyroll</option>
           </select>
+          <select id="serviceType">
+            <option value="movie" selected>Movies</option>
+            <option value="tv">TV</option>
+          </select>
+          <select id="serviceGenre">
+            <option value="">Any genre</option>
+          </select>
           <input id="serviceQuery" type="search" placeholder="Optional: filter by title…">
           <button id="serviceGo">Search This Service</button>
         </div>
-        <div class="small">Shows titles **available on the selected service** in your region. Add a title to narrow results.</div>
+        <div class="small">Filters results to titles **available on the selected service** in your region (US). Use type + genre to refine, or add a title keyword.</div>
         <div id="serviceResults" class="results"></div>
       </div>
     </section>
 
-    <!-- Genres -->
+    <!-- GENRES (hidden until Show) -->
     <section id="genres" class="panel">
       <div class="card">
         <div class="row" style="margin-bottom:10px">
@@ -116,7 +238,7 @@
       </div>
     </section>
 
-    <!-- Actors -->
+    <!-- ACTORS -->
     <section id="actors" class="panel">
       <div class="card">
         <div class="row" style="margin-bottom:10px">
@@ -129,7 +251,7 @@
       </div>
     </section>
 
-    <div class="note">Provider buttons open the service’s own search page for the title. Availability varies by region/account.</div>
+    <div class="note">Provider buttons open the service’s own search for the title. Availability varies by region/account.</div>
   </div>
 
   <script>
@@ -138,16 +260,39 @@
     const TMDB_BASE = "https://api.themoviedb.org/3";
     const REGION = "US";
 
-    // Normalize provider names
-    function norm(name){
-      return (name || "")
-        .replace(/\s*\+\s*/g, "+")  // "Paramount + " -> "Paramount+"
-        .replace(/ plus$/i, "+")    // "Disney Plus" -> "Disney+"
-        .replace(/\s+/g, " ")
-        .trim();
+    const auth = { headers: { Authorization: `Bearer ${TMDB_TOKEN}` } };
+    const img = (p, size="w342") => p ? `https://image.tmdb.org/t/p/${size}${p}` : "https://via.placeholder.com/130x195?text=No+Image";
+    const smallPoster = (p) => p ? `https://image.tmdb.org/t/p/w185${p}` : "https://via.placeholder.com/100x150?text=No+Image";
+    const yearOf = (d) => d ? (d.split("-")[0]||"") : "";
+    const safe = (s) => (s||"").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+    const norm = (name) => (name||"").replace(/\s*\+\s*/g,"+").replace(/ plus$/i,"+").replace(/\s+/g," ").trim();
+
+    /* ---------- Falling Posters Background ---------- */
+    async function spawnFallingPosters(){
+      try{
+        const bg = document.getElementById('falling-bg');
+        const res = await fetch(`${TMDB_BASE}/trending/movie/day`, auth);
+        const data = await res.json();
+        const posters = (data.results||[]).map(r=>r.poster_path).filter(Boolean);
+        const columns = Math.min(18, Math.max(8, Math.floor(window.innerWidth/90)));
+        for(let i=0;i<columns;i++){
+          const p = document.createElement('img');
+          p.className = 'poster';
+          p.src = img(posters[i % posters.length], 'w342');
+          const left = Math.random()*100; // vw
+          const dur = 10 + Math.random()*16; // seconds
+          const delay = Math.random()*-20; // start already falling
+          const rot = (Math.random()*40-20)+'deg';
+          p.style.left = `calc(${left}vw - 65px)`;
+          p.style.animationDuration = `${dur}s`;
+          p.style.animationDelay = `${delay}s`;
+          p.style.setProperty('--rot', rot);
+          bg.appendChild(p);
+        }
+      }catch(e){ /* ignore bg failures */ }
     }
 
-    // Direct search URLs per provider
+    /* ---------- Provider Search Links ---------- */
     function directSearchURL(providerName, title){
       const n = norm(providerName);
       const q = encodeURIComponent(title);
@@ -159,20 +304,8 @@
       if (n === "Crunchyroll") return `https://www.crunchyroll.com/search?from=&q=${q}`;
       if (n === "Amazon Prime Video") return `https://www.amazon.com/s?k=${q}&i=instant-video`;
       if (n === "Apple TV+") return `https://tv.apple.com/us/search?term=${q}`;
-      if (n === "Max") return `https://www.google.com/search?q=site:max.com+${q}`; // no public search
-      // Fallback
-      return `https://www.google.com/search?q=${encodeURIComponent(`"${title}"`)}+${encodeURIComponent(n)}+watch`;
-    }
-
-    // === HELPERS ===
-    const auth = { headers: { Authorization: `Bearer ${TMDB_TOKEN}` } };
-    const img = (p, size="w185") => p ? `https://image.tmdb.org/t/p/${size}${p}` : "https://via.placeholder.com/90x135?text=No+Image";
-    const yearOf = (d) => d ? (d.split("-")[0]||"") : "";
-    const safe = (s) => (s||"").replace(/</g,"&lt;").replace(/>/g,"&gt;");
-
-    async function getProviders(id, mediaType){
-      const r = await fetch(`${TMDB_BASE}/${mediaType}/${id}/watch/providers`, auth);
-      return r.json();
+      if (n === "Max") return `https://www.google.com/search?q=site:max.com+${q}`;
+      return `https://www.google.com/search?q=${encodeURIComponent('"'+title+'" '+n+' watch')}`;
     }
 
     function makeProviderButtons(title, providers){
@@ -186,16 +319,20 @@
         const url = directSearchURL(name, title);
         btns.push(`<a class="linkbtn" target="_blank" rel="noopener" href="${url}">${safe(name)}</a>`);
       });
-      // Fallback
       const q = encodeURIComponent(`"${title}" watch`);
       btns.push(`<a class="linkbtn" target="_blank" rel="noopener" href="https://www.google.com/search?q=${q}">All providers</a>`);
       return btns.join("");
     }
 
+    async function getProviders(id, mediaType){
+      const r = await fetch(`${TMDB_BASE}/${mediaType}/${id}/watch/providers`, auth);
+      return r.json();
+    }
+
     function makeResultTile(item, provData){
       const title = item.title || item.name || "Untitled";
       const y = yearOf(item.release_date || item.first_air_date);
-      const poster = img(item.poster_path);
+      const poster = smallPoster(item.poster_path);
       const media = item.media_type || (item.first_air_date ? "tv" : "movie");
       const us = provData?.results?.[REGION] || {};
       const combined = [...(us.flatrate||[]), ...(us.buy||[]), ...(us.rent||[])];
@@ -206,7 +343,7 @@
         <img src="${poster}" alt="">
         <div class="meta">
           <div class="title">${safe(title)}</div>
-          <div class="sub">${media.toUpperCase()} ${y ? "&middot; "+y : ""}</div>
+          <div class="sub">${media.toUpperCase()} ${y ? " · "+y : ""}</div>
           <div class="providers">${
             (us.flatrate||[]).length
               ? us.flatrate.map(p=>`<span class="chip">${safe(p.provider_name)}</span>`).join("")
@@ -225,7 +362,7 @@
       return el;
     }
 
-    // === MAIN SEARCH ===
+    /* ---------- MAIN SEARCH ---------- */
     async function doSearch(){
       const q = document.getElementById("q").value.trim();
       if(!q) return;
@@ -248,50 +385,8 @@
       }
     }
 
-    // === BY SERVICE SEARCH ===
-    async function doServiceSearch(){
-      const serviceName = norm(document.getElementById("servicePicker").value);
-      const q = document.getElementById("serviceQuery").value.trim();
-      const out = document.getElementById("serviceResults");
-      out.innerHTML = "<div class='small'>Searching titles on "+safe(serviceName)+"…</div>";
-
-      // Step 1: broad search (or discover popular if no query)
-      let items = [];
-      if (q) {
-        const res = await fetch(`${TMDB_BASE}/search/multi?query=${encodeURIComponent(q)}`, auth).then(r=>r.json());
-        items = (res.results || []).filter(x => (x.title||x.name) && (x.media_type!=="person"));
-      } else {
-        // Fallback discover popular mix (movies + tv)
-        const [popM, popT] = await Promise.all([
-          fetch(`${TMDB_BASE}/discover/movie?sort_by=popularity.desc`, auth).then(r=>r.json()),
-          fetch(`${TMDB_BASE}/discover/tv?sort_by=popularity.desc`, auth).then(r=>r.json())
-        ]);
-        items = [...(popM.results||[]).map(x=>({...x, media_type:"movie"})), ...(popT.results||[]).map(x=>({...x, media_type:"tv"}))];
-      }
-
-      // Step 2: filter by provider availability in REGION
-      out.innerHTML = "";
-      let shown = 0;
-      for (const it of items){
-        const media = it.media_type || (it.first_air_date ? "tv" : "movie");
-        const prov = await getProviders(it.id, media);
-        const us = prov?.results?.[REGION] || {};
-        const combined = [...(us.flatrate||[]), ...(us.buy||[]), ...(us.rent||[])];
-        const hasService = combined.some(p => norm(p.provider_name) === serviceName);
-        if (hasService){
-          out.appendChild(makeResultTile(it, prov));
-          shown++;
-        }
-        // show up to ~30 to keep it snappy
-        if (shown >= 30) break;
-      }
-      if (!shown){
-        out.innerHTML = "<div class='small'>No matches found on "+safe(serviceName)+" for that query/region.</div>";
-      }
-    }
-
-    // === GENRES (hidden until user clicks) ===
-    async function loadGenres(){
+    /* ---------- GENRES (hidden until Show) ---------- */
+    async function loadGenresIfNeeded(){
       if (window.__genresLoaded) return;
       const [gm, gt] = await Promise.all([
         fetch(`${TMDB_BASE}/genre/movie/list`, auth).then(r=>r.json()),
@@ -331,7 +426,72 @@
       }
     }
 
-    // === ACTORS ===
+    /* ---------- BY SERVICE (Type + Genre) ---------- */
+    // Map provider name -> TMDB provider id (separate for movie/tv)
+    async function loadProviderIds(){
+      if (window.__provLoaded) return;
+      const [pm, pt] = await Promise.all([
+        fetch(`${TMDB_BASE}/watch/providers/movie?watch_region=${REGION}`, auth).then(r=>r.json()),
+        fetch(`${TMDB_BASE}/watch/providers/tv?watch_region=${REGION}`, auth).then(r=>r.json())
+      ]);
+      const mapByName = (arr)=> {
+        const m = {};
+        (arr||[]).forEach(p=> m[norm(p.provider_name)] = p.provider_id);
+        return m;
+      };
+      window.__provMovie = mapByName(pm.results||[]);
+      window.__provTV = mapByName(pt.results||[]);
+      window.__provLoaded = true;
+    }
+
+    async function populateServiceGenres(){
+      await loadGenresIfNeeded();
+      const type = document.getElementById("serviceType").value;
+      const sel = document.getElementById("serviceGenre");
+      sel.innerHTML = `<option value="">Any genre</option>`;
+      (window.__genres?.[type]||[]).forEach(g=>{
+        const opt = document.createElement("option");
+        opt.value = g.id;
+        opt.textContent = g.name;
+        sel.appendChild(opt);
+      });
+    }
+
+    async function doServiceSearch(){
+      await loadProviderIds();
+      await populateServiceGenres(); // ensures list exists, harmless if already set
+
+      const serviceName = norm(document.getElementById("servicePicker").value);
+      const type = document.getElementById("serviceType").value; // movie|tv
+      const genreId = document.getElementById("serviceGenre").value;
+      const keyword = document.getElementById("serviceQuery").value.trim();
+      const out = document.getElementById("serviceResults");
+      out.innerHTML = `<div class='small'>Searching ${safe(serviceName)} ${type.toUpperCase()}${genreId? " · genre "+genreId:""}…</div>`;
+
+      const provMap = (type==="movie") ? window.__provMovie : window.__provTV;
+      const providerId = provMap[serviceName];
+      if(!providerId){
+        out.innerHTML = `<div class='small'>That provider may not be supported by TMDB in ${REGION} for ${type.toUpperCase()}.</div>`;
+        return;
+      }
+
+      // Build discover URL with provider + genre + region + keyword (if any)
+      const base = `${TMDB_BASE}/discover/${type}?watch_region=${REGION}&with_watch_providers=${providerId}&sort_by=popularity.desc`;
+      const url = base + (genreId ? `&with_genres=${genreId}`:"") + (keyword?`&with_keywords=${encodeURIComponent(keyword)}`:"");
+      const data = await fetch(url, auth).then(r=>r.json());
+
+      out.innerHTML = "";
+      const items = data.results || [];
+      if(!items.length){ out.innerHTML = `<div class='small'>No results on ${safe(serviceName)} for those filters.</div>`; return; }
+
+      // Render up to 40
+      for(const it of items.slice(0,40)){
+        const prov = await getProviders(it.id, type);
+        out.appendChild(makeResultTile({...it, media_type:type}, prov));
+      }
+    }
+
+    /* ---------- ACTORS ---------- */
     async function searchActors(){
       const q = document.getElementById("actorQuery").value.trim();
       if(!q) return;
@@ -340,11 +500,11 @@
       const people = res.results || [];
       list.innerHTML = "";
       if(!people.length){ list.innerHTML = "<div class='small'>No actors found.</div>"; return; }
-      people.slice(0,12).forEach(p=>{
+      people.slice(0,14).forEach(p=>{
         const row = document.createElement("div");
         row.className = "person";
         row.innerHTML = `
-          <img src="${img(p.profile_path,'w185')}" alt="">
+          <img src="${smallPoster(p.profile_path)}" alt="">
           <div>
             <div><strong>${safe(p.name)}</strong></div>
             <div class="small">${(p.known_for_department||'').toUpperCase()}</div>
@@ -361,7 +521,7 @@
       out.innerHTML = "<div class='small'>Loading filmography…</div>";
       const data = await fetch(`${TMDB_BASE}/person/${personId}/combined_credits`, auth).then(r=>r.json());
       out.innerHTML = "";
-      const roles = (data.cast || []).sort((a,b)=>(b.popularity||0)-(a.popularity||0)).slice(0,30);
+      const roles = (data.cast || []).sort((a,b)=>(b.popularity||0)-(a.popularity||0)).slice(0,36);
       for(const it of roles){
         const media = it.media_type || (it.first_air_date ? "tv" : "movie");
         const prov = await getProviders(it.id, media);
@@ -369,31 +529,32 @@
       }
     }
 
-    // === TABS & HOME ===
+    /* ---------- Tabs, Home, Events ---------- */
     function activateTab(id){
       document.querySelectorAll(".tabbtn").forEach(x=>x.classList.toggle("active", x.dataset.tab===id));
       document.querySelectorAll(".panel").forEach(p=>p.classList.toggle("active", p.id===id));
       window.scrollTo({top:0,behavior:"smooth"});
     }
     document.querySelectorAll(".tabbtn").forEach(b=>{
-      b.addEventListener("click", ()=>activateTab(b.dataset.tab));
+      b.addEventListener("click", ()=>{
+        activateTab(b.dataset.tab);
+        if(b.dataset.tab==="service"){ populateServiceGenres(); }
+      });
     });
+
     document.getElementById("homeLogo").addEventListener("click", ()=>{
-      // Home: go to Search and clear any previous results
       activateTab("search");
       document.getElementById("q").value = "";
       document.getElementById("searchResults").innerHTML = "";
+      window.scrollTo({top:0,behavior:"smooth"});
     });
 
-    // === EVENTS ===
     document.getElementById("go").addEventListener("click", doSearch);
     document.getElementById("q").addEventListener("keydown", e=>{ if(e.key==="Enter") doSearch(); });
-    document.getElementById("serviceGo").addEventListener("click", doServiceSearch);
-    document.getElementById("serviceQuery").addEventListener("keydown", e=>{ if(e.key==="Enter") doServiceSearch(); });
 
     document.getElementById("showGenresBtn").addEventListener("click", async ()=>{
-      await loadGenres();
-      renderGenreChips(); // only show after explicit click
+      await loadGenresIfNeeded();
+      renderGenreChips();
     });
     document.getElementById("genreType").addEventListener("change", ()=>{
       if (window.__genresLoaded && document.getElementById("genreChips").classList.contains("show")){
@@ -401,13 +562,19 @@
       }
     });
 
-    // No auto-load of genres; chips remain hidden until user clicks "Show genres".
+    document.getElementById("serviceType").addEventListener("change", populateServiceGenres);
+    document.getElementById("serviceGo").addEventListener("click", doServiceSearch);
+    document.getElementById("serviceQuery").addEventListener("keydown", e=>{ if(e.key==="Enter") doServiceSearch(); });
+
+    // init
+    spawnFallingPosters(); // background flair
+    populateServiceGenres(); // seed genres for By Service tab
   </script>
 
-  <!-- PWA SW registration; bump the query string when you update HTML so caches refresh -->
+  <!-- PWA SW registration; bump query to bust cache if updating -->
   <script>
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js?v=streamhub-byservice-home-1').catch(()=>{});
+      navigator.serviceWorker.register('sw.js?v=streamdeck-v1').catch(()=>{});
     }
   </script>
 </body>

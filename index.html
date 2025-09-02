@@ -74,7 +74,7 @@
     .links{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
     .linkbtn{font-size:.85rem;background:#0e1a66;color:var(--text);border:1px solid rgba(255,255,255,.22);padding:6px 10px;border-radius:999px;text-decoration:none;box-shadow:var(--glow)}
 
-    /* Provider logo buttons */
+    /* Provider logo buttons (inline SVG) */
     .logoLinks{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px}
     .logoLink{
       display:inline-flex;align-items:center;justify-content:center;
@@ -83,7 +83,7 @@
       box-shadow:var(--glow);text-decoration:none;overflow:hidden;transition:transform .06s ease
     }
     .logoLink:hover{transform:translateY(-1px)}
-    .logoImg{width:38px;height:38px;object-fit:contain;display:block}
+    .logoSvg{width:38px;height:38px;display:block}
 
     .note{color:var(--muted);font-size:.9rem;margin-top:8px}
 
@@ -217,31 +217,32 @@
     const safe = (s) => (s||"").replace(/</g,"&lt;").replace(/>/g,"&gt;");
     const norm = (name) => (name||"").replace(/\s*\+\s*/g,"+").replace(/ plus$/i,"+").replace(/\s+/g," ").trim();
 
-    /* ====== SVG badge helpers (logo buttons) ====== */
-    function svgDataURI(svg){ return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg); }
-    function badgeSVG({bg="#111", fg="#fff", text="?"}){
+    /* ====== Inline SVG badges for providers ====== */
+    function badgeInline({bg="#111", fg="#fff", text="?"}){
       return `
-        <svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120">
+        <svg class="logoSvg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" aria-hidden="true" focusable="false">
           <rect rx="24" ry="24" x="4" y="4" width="112" height="112" fill="${bg}"/>
           <text x="50%" y="54%" dominant-baseline="middle" text-anchor="middle"
-                font-family="Inter,Segoe UI,Arial" font-size="44" fill="${fg}" font-weight="800">${text}</text>
+                font-family="Inter,Segoe UI,Arial" font-size="44" fill="${fg}" font-weight="800">
+            ${text}
+          </text>
         </svg>`;
     }
-    function providerLogo(name){
+    function providerLogoInline(name){
       const n = (name||"").trim().toLowerCase();
-      if (n==="netflix")        return {src: svgDataURI(badgeSVG({bg:"#e50914", fg:"#fff", text:"N"})), alt:"Netflix"};
-      if (n==="hulu")           return {src: svgDataURI(badgeSVG({bg:"#1ce783", fg:"#03120b", text:"h"})), alt:"Hulu"};
-      if (n==="disney+")        return {src: svgDataURI(badgeSVG({bg:"#113ccf", fg:"#fff", text:"D+"})), alt:"Disney+"};
-      if (n==="max")            return {src: svgDataURI(badgeSVG({bg:"#6e55ff", fg:"#fff", text:"Max"})), alt:"Max"};
+      if (n==="netflix")     return badgeInline({bg:"#e50914", fg:"#fff", text:"N"});
+      if (n==="hulu")        return badgeInline({bg:"#1ce783", fg:"#03120b", text:"h"});
+      if (n==="disney+")     return badgeInline({bg:"#113ccf", fg:"#fff", text:"D+"});
+      if (n==="max")         return badgeInline({bg:"#6e55ff", fg:"#fff", text:"Max"});
       if (n==="amazon prime video" || n==="prime video" || n==="amazon video")
-                                return {src: svgDataURI(badgeSVG({bg:"#00a8e1", fg:"#031b24", text:"PV"})), alt:"Prime Video"};
+                             return badgeInline({bg:"#00a8e1", fg:"#031b24", text:"PV"});
       if (n==="apple tv+" || n==="apple tv plus" || n==="appletv+")
-                                return {src: svgDataURI(badgeSVG({bg:"#111", fg:"#fff", text:"TV+"})), alt:"Apple TV+"};
-      if (n==="peacock")        return {src: svgDataURI(badgeSVG({bg:"#111", fg:"#ffd166", text:"P"})), alt:"Peacock"};
-      if (n==="paramount+")     return {src: svgDataURI(badgeSVG({bg:"#0064ff", fg:"#fff", text:"P+"})), alt:"Paramount+"};
-      if (n==="crunchyroll")    return {src: svgDataURI(badgeSVG({bg:"#ff7f00", fg:"#101010", text:"cr"})), alt:"Crunchyroll"};
+                             return badgeInline({bg:"#111", fg:"#fff", text:"TV+"});
+      if (n==="peacock")     return badgeInline({bg:"#111", fg:"#ffd166", text:"P"});
+      if (n==="paramount+")  return badgeInline({bg:"#0064ff", fg:"#fff", text:"P+"});
+      if (n==="crunchyroll") return badgeInline({bg:"#ff7f00", fg:"#101010", text:"cr"});
       const initials = name?.split(/\s+/).map(w=>w[0]).join("").slice(0,3).toUpperCase() || "?";
-      return {src: svgDataURI(badgeSVG({bg:"#2b3277", fg:"#fff", text:initials})), alt:name||"Provider"};
+      return badgeInline({bg:"#2b3277", fg:"#fff", text:initials});
     }
 
     /* ====== Falling posters ====== */
@@ -313,18 +314,20 @@
       const r = await fetch(`${TMDB_BASE}/${media}/${id}/watch/providers`, auth);
       return r.json();
     }
+
+    /* ====== Tiles & buttons ====== */
     function providerButtons(title, year, provUS){
       const combined = [...(provUS.flatrate||[]), ...(provUS.buy||[]), ...(provUS.rent||[])];
       const seen = new Set();
       const btns = [];
       combined.forEach(p=>{
-        const key = norm(p.provider_name).toLowerCase();
+        const key = (p.provider_name||"").trim().toLowerCase();
         if(seen.has(key)) return; seen.add(key);
         const url = providerTitleURL(p.provider_name, title, year);
-        const {src, alt} = providerLogo(p.provider_name);
+        const svg = providerLogoInline(p.provider_name);
         btns.push(`
           <a class="logoLink" target="_blank" rel="noopener" href="${url}" title="Open on ${safe(p.provider_name)}">
-            <img class="logoImg" src="${src}" alt="${safe(alt)}"/>
+            ${svg}
           </a>
         `);
       });
@@ -333,7 +336,7 @@
           <a class="logoLink" target="_blank" rel="noopener"
              href="https://www.google.com/search?q=${encodeURIComponent(`"${title}" ${year||""} watch`) }"
              title="Find streaming options">
-            <img class="logoImg" src="${svgDataURI(badgeSVG({bg:'#0e1a66', fg:'#fff', text:'?' }))}" alt="Find options"/>
+            ${badgeInline({bg:'#0e1a66', fg:'#fff', text:'?'})}
           </a>
         `);
       }
@@ -397,7 +400,7 @@
         const prov = await getProviders(id, "movie");
         out.innerHTML = resultTile({...details, media_type:"movie"}, prov);
       }catch(_){}
-      doSearch(); // also run a general search for nearby matches
+      doSearch();
     }
 
     /* ====== GENRES (always visible) ====== */
@@ -633,7 +636,7 @@
   <!-- PWA SW registration; bump query to bust cache if updating -->
   <script>
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js?v=streamdeck-logos-v1').catch(()=>{});
+      navigator.serviceWorker.register('sw.js?v=streamdeck-logos-inline-v2').catch(()=>{});
     }
   </script>
 </body>

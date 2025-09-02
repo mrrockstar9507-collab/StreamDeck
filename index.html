@@ -17,7 +17,7 @@
     body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);overflow-x:hidden}
     a{color:inherit}
 
-    /* Falling posters background (clickable quick links) */
+    /* Falling posters background (clickable) */
     #falling-bg{position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.28}
     .posterLink{position:absolute;top:-260px;width:140px;height:210px;border-radius:12px;box-shadow:0 14px 34px rgba(0,0,0,.55);overflow:hidden;animation:fall linear forwards;pointer-events:auto}
     .posterLink img{width:100%;height:100%;object-fit:cover;display:block}
@@ -75,7 +75,7 @@
     .linkbtn{font-size:.85rem;background:#0e1a66;color:var(--text);border:1px solid rgba(255,255,255,.22);padding:6px 10px;border-radius:999px;text-decoration:none;box-shadow:var(--glow)}
     .note{color:var(--muted);font-size:.9rem;margin-top:8px}
 
-    /* Always-visible genre list (brighter hot chips) */
+    /* Always-visible genre chips */
     .chips{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
     .gchip{background:linear-gradient(135deg,var(--accent3),var(--accent4));color:#06132c;border:none;padding:10px 14px;border-radius:999px;cursor:pointer;box-shadow:0 8px 20px rgba(255,209,102,.25), 0 0 18px rgba(134,255,183,.25);transition:transform .06s ease, filter .15s ease}
     .gchip:hover{transform:translateY(-1px);filter:brightness(1.06)}
@@ -106,7 +106,7 @@
       <button class="tabbtn" data-tab="actors">Browse by Actor</button>
     </div>
 
-    <!-- SEARCH -->
+    <!-- SEARCH (Home) -->
     <section id="search" class="panel active">
       <div class="card">
         <div class="row" style="margin-bottom:10px">
@@ -118,6 +118,24 @@
           </select>
           <button id="go">Search</button>
         </div>
+
+        <!-- NEW: Randomizer -->
+        <div class="row" style="margin:6px 0 0">
+          <select id="randService">
+            <option>Netflix</option><option>Hulu</option><option>Disney+</option><option>Max</option>
+            <option>Amazon Prime Video</option><option>Apple TV+</option><option>Peacock</option>
+            <option>Paramount+</option><option>Crunchyroll</option>
+          </select>
+          <select id="randType">
+            <option value="movie" selected>Movie</option>
+            <option value="tv">TV</option>
+          </select>
+          <select id="randGenre"><option value="">Any genre</option></select>
+          <button id="randGo" title="Pick something for me">🎲 Randomize</button>
+        </div>
+        <div class="small">Choose a service, type, and (optional) genre — then hit Randomize.</div>
+
+        <div id="randomResult" class="results"></div>
         <div id="searchResults" class="results"></div>
       </div>
     </section>
@@ -144,7 +162,7 @@
       </div>
     </section>
 
-    <!-- GENRES (always visible list under type picker) -->
+    <!-- GENRES (always visible list) -->
     <section id="genres" class="panel">
       <div class="card">
         <div class="row" style="margin-bottom:10px">
@@ -187,7 +205,7 @@
     const safe = (s) => (s||"").replace(/</g,"&lt;").replace(/>/g,"&gt;");
     const norm = (name) => (name||"").replace(/\s*\+\s*/g,"+").replace(/ plus$/i,"+").replace(/\s+/g," ").trim();
 
-    /* ====== FALLING POSTERS ====== */
+    /* ====== FALLING POSTERS (clickable) ====== */
     async function spawnFallingPosters(){
       try{
         const bg = document.getElementById('falling-bg');
@@ -214,7 +232,7 @@
           a.style.setProperty('--rot', rot);
           bg.appendChild(a);
         }
-      }catch(e){ /* background errors ignored */ }
+      }catch(e){ /* ignore */ }
     }
 
     /* ====== PROVIDER DIRECT LINKS ====== */
@@ -313,6 +331,7 @@
       ]);
       window.__genres = { movie:(gm.genres||[]), tv:(gt.genres||[]) };
       renderGenreChips();
+      seedRandomGenreSelects(); // also seed for Randomizer & By Service
     }
     function renderGenreChips(){
       const type = document.getElementById("genreType").value;
@@ -342,8 +361,9 @@
       }
     }
 
-    /* ====== BY SERVICE ====== */
+    /* ====== BY SERVICE (existing) ====== */
     async function loadProviderIds(){
+      if (window.__provLoaded) return;
       const [pm, pt] = await Promise.all([
         fetch(`${TMDB_BASE}/watch/providers/movie?watch_region=${REGION}`, auth).then(r=>r.json()),
         fetch(`${TMDB_BASE}/watch/providers/tv?watch_region=${REGION}`, auth).then(r=>r.json())
@@ -351,6 +371,7 @@
       const mk = (arr)=>{ const m={}; (arr||[]).forEach(p=> m[norm(p.provider_name)] = p.provider_id); return m; };
       window.__provMovie = mk(pm.results||[]);
       window.__provTV = mk(pt.results||[]);
+      window.__provLoaded = true;
     }
     async function populateServiceGenres(){
       if(!window.__genres){ await loadGenres(); }
@@ -362,8 +383,7 @@
       });
     }
     async function doServiceSearch(){
-      if(!window.__provMovie || !window.__provTV) await loadProviderIds();
-      await populateServiceGenres();
+      await loadProviderIds(); await populateServiceGenres();
       const serviceName = norm(document.getElementById("servicePicker").value);
       const type = document.getElementById("serviceType").value;
       const genreId = document.getElementById("serviceGenre").value;
@@ -385,7 +405,54 @@
       }
     }
 
-    /* ====== ACTORS (robust search + breakdowns) ====== */
+    /* ====== RANDOMIZER (new) ====== */
+    function seedRandomGenreSelects(){
+      // For Randomizer
+      const sel = document.getElementById("randGenre");
+      const type = document.getElementById("randType").value; // movie|tv
+      sel.innerHTML = `<option value="">Any genre</option>`;
+      (window.__genres?.[type]||[]).forEach(g=>{
+        const o = document.createElement("option"); o.value=g.id; o.textContent=g.name; sel.appendChild(o);
+      });
+    }
+    document.getElementById("randType").addEventListener("change", seedRandomGenreSelects);
+
+    async function randomizePick(){
+      await loadProviderIds();
+      if(!window.__genres) await loadGenres();
+
+      const serviceName = norm(document.getElementById("randService").value);
+      const type = document.getElementById("randType").value; // movie|tv
+      const genreId = document.getElementById("randGenre").value;
+      const out = document.getElementById("randomResult");
+      out.innerHTML = "<div class='small'>Rolling the dice…</div>";
+
+      const provId = (type==="movie"?window.__provMovie:window.__provTV)[serviceName];
+      if(!provId){ out.innerHTML = `<div class='small'>That provider isn’t available for ${type.toUpperCase()} in ${REGION}.</div>`; return; }
+
+      // 1) First discover to get total_pages (cap to 25 for speed)
+      let base = `${TMDB_BASE}/discover/${type}?watch_region=${REGION}&with_watch_providers=${provId}&sort_by=popularity.desc`;
+      if (genreId) base += `&with_genres=${genreId}`;
+      const first = await fetch(base + `&page=1`, auth).then(r=>r.json()).catch(()=>null);
+      const totalPages = Math.max(1, Math.min((first?.total_pages||1), 25));
+      const randPage = 1 + Math.floor(Math.random()*totalPages);
+
+      // 2) Fetch that random page, pick random item
+      const pageData = randPage===1 ? first : await fetch(base + `&page=${randPage}`, auth).then(r=>r.json()).catch(()=>null);
+      const list = pageData?.results || [];
+      if(!list.length){ out.innerHTML = `<div class='small'>Couldn’t find anything — try different filters.</div>`; return; }
+      const pick = list[Math.floor(Math.random()*list.length)];
+
+      // 3) Render the picked title
+      const prov = await getProviders(pick.id, type);
+      out.innerHTML = ""; // clear previous
+      out.insertAdjacentHTML("beforeend", resultTile({...pick, media_type:type}, prov));
+
+      // Scroll into view
+      out.scrollIntoView({behavior:"smooth", block:"start"});
+    }
+
+    /* ====== ACTORS (kept from previous fix) ====== */
     function isMainRole(c){ return typeof c.order === "number" ? c.order <= 5 : false; }
     function splitRoles(credits){
       const movies = (credits.cast||[]).filter(r => r.media_type === "movie");
@@ -405,7 +472,6 @@
       try{
         const credits = await fetch(`${TMDB_BASE}/person/${personId}/combined_credits?language=en-US`, auth).then(r=>r.json());
         const split = splitRoles(credits);
-        // prefetch provider info for speed
         const all = [...split.movie.main, ...split.movie.appearances, ...split.tv.main, ...split.tv.appearances].slice(0,72);
         const cache = {};
         await Promise.all(all.map(async it=>{
@@ -426,7 +492,6 @@
         mount.innerHTML = `<div class="small">Couldn’t load roles right now. Please try again.</div>`;
       }
     }
-
     async function runActorSearch(query){
       const list = document.getElementById("actorList");
       const breakdowns = document.getElementById("actorBreakdowns");
@@ -436,8 +501,7 @@
         const url = `${TMDB_BASE}/search/person?query=${encodeURIComponent(query)}&include_adult=false&language=en-US`;
         const res = await fetch(url, auth).then(r=>r.json());
         const people = res.results || [];
-        list.innerHTML = "";
-        breakdowns.innerHTML = "";
+        list.innerHTML = ""; breakdowns.innerHTML = "";
         if(!people.length){ list.innerHTML = "<div class='small'>No actors found.</div>"; return; }
         people.slice(0,12).forEach(p=>{
           const card = document.createElement("div");
@@ -469,7 +533,7 @@
     }));
     document.getElementById("homeLogo").addEventListener("click", ()=>{
       activateTab("search");
-      document.getElementById("q").value=""; document.getElementById("searchResults").innerHTML="";
+      document.getElementById("q").value=""; document.getElementById("searchResults").innerHTML=""; document.getElementById("randomResult").innerHTML="";
       window.scrollTo({top:0,behavior:"smooth"});
     });
 
@@ -483,7 +547,7 @@
     document.getElementById("serviceGo").addEventListener("click", doServiceSearch);
     document.getElementById("serviceQuery").addEventListener("keydown", e=>{ if(e.key==="Enter") doServiceSearch(); });
 
-    // Actor search: button, Enter, and type-ahead (debounced)
+    // Actor search hooks
     document.getElementById("actorGo").addEventListener("click", ()=>runActorSearch(document.getElementById("actorQuery").value.trim()));
     document.getElementById("actorQuery").addEventListener("keydown", e=>{ if(e.key==="Enter") runActorSearch(e.target.value.trim()); });
     let actorDebounce;
@@ -493,16 +557,20 @@
       actorDebounce = setTimeout(()=>{ if(v.length>=2) runActorSearch(v); }, 400);
     });
 
+    // Randomizer
+    document.getElementById("randGo").addEventListener("click", randomizePick);
+    document.getElementById("randType").addEventListener("change", seedRandomGenreSelects);
+
     /* ====== INIT ====== */
-    spawnFallingPosters();     // clickable background posters
-    loadGenres();              // load both movie & tv genres
-    populateServiceGenres();   // seed genres in By Service tab
+    spawnFallingPosters();
+    loadGenres();            // also seeds randomizer & service genre selects
+    (async()=>{ await loadProviderIds(); })(); // warm provider maps
   </script>
 
   <!-- PWA SW registration; bump query to bust cache if updating -->
   <script>
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js?v=streamdeck-genres-always-actors-fix-1').catch(()=>{});
+      navigator.serviceWorker.register('sw.js?v=streamdeck-randomizer-v1').catch(()=>{});
     }
   </script>
 </body>

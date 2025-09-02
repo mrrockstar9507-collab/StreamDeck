@@ -17,14 +17,15 @@
     body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);overflow-x:hidden}
     a{color:inherit}
 
-    /* Falling posters background */
-    #falling-bg{position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.3}
+    /* Falling posters background (clickable quick links) */
+    #falling-bg{position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.28}
     .posterLink{position:absolute;top:-260px;width:140px;height:210px;border-radius:12px;box-shadow:0 14px 34px rgba(0,0,0,.55);overflow:hidden;animation:fall linear forwards;pointer-events:auto}
     .posterLink img{width:100%;height:100%;object-fit:cover;display:block}
     @keyframes fall{to{transform:translateY(150vh) rotate(var(--rot));opacity:.95}}
 
     .wrap{max-width:1140px;margin:0 auto;padding:22px;position:relative;z-index:1}
     header{display:flex;align-items:center;gap:14px;margin-bottom:6px}
+
     /* Remote power logo (home) */
     .logo{width:52px;height:52px;border-radius:14px;background:radial-gradient(120px 120px at 30% 20%, rgba(255,255,255,.25), transparent 60%), linear-gradient(135deg,var(--accent1),var(--accent2));
           display:grid;place-items:center;cursor:pointer;user-select:none;box-shadow:var(--shadow),var(--glow)}
@@ -42,7 +43,7 @@
       text-shadow:0 2px 0 rgba(0,0,0,.25), 0 4px 18px rgba(0,0,0,.25);
       position:relative;
     }
-    .brand:after{ /* faint board grooves across the text */
+    .brand:after{
       content:""; position:absolute; inset:0;
       background:linear-gradient( to right, transparent 0, rgba(0,0,0,.18) 2px, transparent 4px) ;
       background-size:38px 100%;
@@ -74,26 +75,22 @@
     .linkbtn{font-size:.85rem;background:#0e1a66;color:var(--text);border:1px solid rgba(255,255,255,.22);padding:6px 10px;border-radius:999px;text-decoration:none;box-shadow:var(--glow)}
     .note{color:var(--muted);font-size:.9rem;margin-top:8px}
 
-    /* Brighter genre “hot chips” */
-    .chips{display:none;flex-wrap:wrap;gap:10px;margin-top:12px}
-    .chips.show{display:flex}
+    /* Always-visible genre list (brighter hot chips) */
+    .chips{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
     .gchip{background:linear-gradient(135deg,var(--accent3),var(--accent4));color:#06132c;border:none;padding:10px 14px;border-radius:999px;cursor:pointer;box-shadow:0 8px 20px rgba(255,209,102,.25), 0 0 18px rgba(134,255,183,.25);transition:transform .06s ease, filter .15s ease}
     .gchip:hover{transform:translateY(-1px);filter:brightness(1.06)}
     .gchip.active{outline:2px solid rgba(255,255,255,.4)}
 
-    /* Actor sections */
     .section-title{margin:18px 0 6px;font-weight:900;color:var(--accent3);text-transform:uppercase;letter-spacing:.06em;font-size:.95rem}
     .small{font-size:.9rem;color:var(--muted)}
   </style>
 </head>
 <body>
-  <!-- Falling posters layer -->
   <div id="falling-bg"></div>
 
   <div class="wrap">
     <header>
       <div id="homeLogo" class="logo" title="Home">
-        <!-- Remote power icon -->
         <svg viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M12 2 v8"></path>
           <path d="M5.5 5.5a8 8 0 1 0 13 0"></path>
@@ -147,7 +144,7 @@
       </div>
     </section>
 
-    <!-- GENRES -->
+    <!-- GENRES (always visible list under type picker) -->
     <section id="genres" class="panel">
       <div class="card">
         <div class="row" style="margin-bottom:10px">
@@ -155,19 +152,18 @@
             <option value="movie" selected>Movies</option>
             <option value="tv">TV</option>
           </select>
-          <button id="showGenresBtn">Show genres</button>
         </div>
         <div id="genreChips" class="chips"></div>
         <div id="genreResults" class="results"></div>
-        <div class="note">Press <em>Show genres</em> to reveal chips. Click a chip to load titles.</div>
+        <div class="note">Tap a genre to load popular titles. Switch Movies/TV to refresh the list.</div>
       </div>
     </section>
 
-    <!-- ACTORS (main vs appearance) -->
+    <!-- ACTORS -->
     <section id="actors" class="panel">
       <div class="card">
         <div class="row" style="margin-bottom:10px">
-          <input id="actorQuery" type="text" placeholder="Search for an actor…">
+          <input id="actorQuery" type="text" placeholder="Search for an actor… (e.g., Tom Hanks)">
           <button id="actorGo">Find Actor</button>
         </div>
         <div id="actorList" class="results" style="grid-template-columns:repeat(auto-fit,minmax(260px,1fr))"></div>
@@ -191,7 +187,7 @@
     const safe = (s) => (s||"").replace(/</g,"&lt;").replace(/>/g,"&gt;");
     const norm = (name) => (name||"").replace(/\s*\+\s*/g,"+").replace(/ plus$/i,"+").replace(/\s+/g," ").trim();
 
-    /* ====== FALLING POSTERS BACKGROUND (clickable) ====== */
+    /* ====== FALLING POSTERS ====== */
     async function spawnFallingPosters(){
       try{
         const bg = document.getElementById('falling-bg');
@@ -218,25 +214,10 @@
           a.style.setProperty('--rot', rot);
           bg.appendChild(a);
         }
-      }catch(e){ /* ignore bg errors */ }
+      }catch(e){ /* background errors ignored */ }
     }
 
-    /* ====== PROVIDER DIRECT LINKS (best-effort deep links) ====== */
-    function providerTitleURL(providerName, title, year){
-      const n = norm(providerName), q = encodeURIComponent(`${title} ${year||""}`.trim());
-      // Provider-specific search result pages that usually land directly on the title:
-      if (n==="Netflix") return `https://www.netflix.com/search?q=${q}`;
-      if (n==="Hulu") return `https://www.hulu.com/search?q=${q}`;
-      if (n==="Disney+") return `https://www.disneyplus.com/search?q=${q}`;
-      if (n==="Peacock") return `https://www.peacocktv.com/search?q=${q}`;
-      if (n==="Paramount+") return `https://www.paramountplus.com/search/?q=${q}`;
-      if (n==="Crunchyroll") return `https://www.crunchyroll.com/search?from=&q=${q}`;
-      if (n==="Amazon Prime Video") return `https://www.amazon.com/s?k=${q}&i=instant-video`;
-      if (n==="Apple TV+") return `https://tv.apple.com/us/search?term=${q}`;
-      if (n==="Max") return `https://www.google.com/search?btnI=1&q=${encodeURIComponent(`site:max.com "${title}" ${year||""}`)}`;
-      // Fallback: jump to first result on provider’s site
-      return `https://www.google.com/search?btnI=1&q=${encodeURIComponent(`site:${providerDomainGuess(n)} "${title}" ${year||""}`)}`;
-    }
+    /* ====== PROVIDER DIRECT LINKS ====== */
     function providerDomainGuess(n){
       if (n==="Netflix") return "netflix.com";
       if (n==="Hulu") return "hulu.com";
@@ -249,12 +230,23 @@
       if (n==="Max") return "max.com";
       return (n.toLowerCase().replace(/\s+/g,'') + ".com");
     }
-
-    async function getProviders(id, media){ // movie|tv
+    function providerTitleURL(providerName, title, year){
+      const n = norm(providerName), q = encodeURIComponent(`${title} ${year||""}`.trim());
+      if (n==="Netflix") return `https://www.netflix.com/search?q=${q}`;
+      if (n==="Hulu") return `https://www.hulu.com/search?q=${q}`;
+      if (n==="Disney+") return `https://www.disneyplus.com/search?q=${q}`;
+      if (n==="Peacock") return `https://www.peacocktv.com/search?q=${q}`;
+      if (n==="Paramount+") return `https://www.paramountplus.com/search/?q=${q}`;
+      if (n==="Crunchyroll") return `https://www.crunchyroll.com/search?from=&q=${q}`;
+      if (n==="Amazon Prime Video") return `https://www.amazon.com/s?k=${q}&i=instant-video`;
+      if (n==="Apple TV+") return `https://tv.apple.com/us/search?term=${q}`;
+      if (n==="Max") return `https://www.google.com/search?btnI=1&q=${encodeURIComponent(`site:max.com "${title}" ${year||""}`)}`;
+      return `https://www.google.com/search?btnI=1&q=${encodeURIComponent(`site:${providerDomainGuess(n)} "${title}" ${year||""}`)}`;
+    }
+    async function getProviders(id, media){
       const r = await fetch(`${TMDB_BASE}/${media}/${id}/watch/providers`, auth);
       return r.json();
     }
-
     function providerButtons(title, year, provUS){
       const combined = [...(provUS.flatrate||[]), ...(provUS.buy||[]), ...(provUS.rent||[])];
       const seen = new Set();
@@ -270,7 +262,6 @@
       }
       return btns.join("");
     }
-
     function resultTile(item, prov){
       const title = item.title || item.name || "Untitled";
       const media = item.media_type || (item.first_air_date ? "tv" : "movie");
@@ -294,7 +285,7 @@
         </div>`;
     }
 
-    /* ====== BASIC SEARCH ====== */
+    /* ====== MAIN SEARCH ====== */
     async function doSearch(){
       const q = document.getElementById("q").value.trim();
       if(!q) return;
@@ -302,7 +293,8 @@
       const out = document.getElementById("searchResults");
       out.innerHTML = "<div class='small'>Searching…</div>";
       const endpoint = type==="movie"?"search/movie":type==="tv"?"search/tv":"search/multi";
-      const data = await fetch(`${TMDB_BASE}/${endpoint}?query=${encodeURIComponent(q)}`, auth).then(r=>r.json());
+      const url = `${TMDB_BASE}/${endpoint}?query=${encodeURIComponent(q)}&include_adult=false`;
+      const data = await fetch(url, auth).then(r=>r.json()).catch(()=>({results:[]}));
       out.innerHTML = "";
       const items = (data.results||[]).filter(x => (x.title||x.name) && (x.media_type!=="person"));
       if(!items.length){ out.innerHTML = "<div class='small'>No results.</div>"; return; }
@@ -313,33 +305,36 @@
       }
     }
 
-    /* ====== GENRES ====== */
-    async function loadGenresIfNeeded(){
-      if (window.__genresLoaded) return;
+    /* ====== GENRES (always visible) ====== */
+    async function loadGenres(){
       const [gm, gt] = await Promise.all([
         fetch(`${TMDB_BASE}/genre/movie/list`, auth).then(r=>r.json()),
         fetch(`${TMDB_BASE}/genre/tv/list`, auth).then(r=>r.json())
       ]);
       window.__genres = { movie:(gm.genres||[]), tv:(gt.genres||[]) };
-      window.__genresLoaded = true;
+      renderGenreChips();
     }
     function renderGenreChips(){
       const type = document.getElementById("genreType").value;
       const holder = document.getElementById("genreChips");
-      holder.classList.add("show");
       holder.innerHTML = "";
       (window.__genres?.[type] || []).forEach(g=>{
         const b = document.createElement("button");
         b.className = "gchip";
         b.textContent = g.name;
-        b.addEventListener("click", ()=>{ [...holder.children].forEach(c=>c.classList.remove("active")); b.classList.add("active"); discoverByGenre(type, g.id); });
+        b.addEventListener("click", ()=>{
+          [...holder.children].forEach(c=>c.classList.remove("active"));
+          b.classList.add("active");
+          discoverByGenre(type, g.id);
+        });
         holder.appendChild(b);
       });
     }
     async function discoverByGenre(type, genreId){
       const out = document.getElementById("genreResults");
       out.innerHTML = "<div class='small'>Loading…</div>";
-      const data = await fetch(`${TMDB_BASE}/discover/${type}?with_genres=${genreId}&sort_by=popularity.desc`, auth).then(r=>r.json());
+      const url = `${TMDB_BASE}/discover/${type}?with_genres=${genreId}&sort_by=popularity.desc`;
+      const data = await fetch(url, auth).then(r=>r.json()).catch(()=>({results:[]}));
       out.innerHTML = "";
       for(const it of (data.results||[])){
         const prov = await getProviders(it.id, type);
@@ -347,9 +342,8 @@
       }
     }
 
-    /* ====== BY SERVICE (type + genre) ====== */
+    /* ====== BY SERVICE ====== */
     async function loadProviderIds(){
-      if (window.__provLoaded) return;
       const [pm, pt] = await Promise.all([
         fetch(`${TMDB_BASE}/watch/providers/movie?watch_region=${REGION}`, auth).then(r=>r.json()),
         fetch(`${TMDB_BASE}/watch/providers/tv?watch_region=${REGION}`, auth).then(r=>r.json())
@@ -357,10 +351,9 @@
       const mk = (arr)=>{ const m={}; (arr||[]).forEach(p=> m[norm(p.provider_name)] = p.provider_id); return m; };
       window.__provMovie = mk(pm.results||[]);
       window.__provTV = mk(pt.results||[]);
-      window.__provLoaded = true;
     }
     async function populateServiceGenres(){
-      await loadGenresIfNeeded();
+      if(!window.__genres){ await loadGenres(); }
       const type = document.getElementById("serviceType").value;
       const sel = document.getElementById("serviceGenre");
       sel.innerHTML = `<option value="">Any genre</option>`;
@@ -369,7 +362,8 @@
       });
     }
     async function doServiceSearch(){
-      await loadProviderIds(); await populateServiceGenres();
+      if(!window.__provMovie || !window.__provTV) await loadProviderIds();
+      await populateServiceGenres();
       const serviceName = norm(document.getElementById("servicePicker").value);
       const type = document.getElementById("serviceType").value;
       const genreId = document.getElementById("serviceGenre").value;
@@ -381,7 +375,7 @@
       let url = `${TMDB_BASE}/discover/${type}?watch_region=${REGION}&with_watch_providers=${provId}&sort_by=popularity.desc`;
       if (genreId) url += `&with_genres=${genreId}`;
       if (keyword) url += `&with_keywords=${encodeURIComponent(keyword)}`;
-      const data = await fetch(url, auth).then(r=>r.json());
+      const data = await fetch(url, auth).then(r=>r.json()).catch(()=>({results:[]}));
       out.innerHTML = "";
       const items = data.results||[];
       if(!items.length){ out.innerHTML = `<div class='small'>No results.</div>`; return; }
@@ -391,7 +385,7 @@
       }
     }
 
-    /* ====== ACTORS: main vs appearance ====== */
+    /* ====== ACTORS (robust search + breakdowns) ====== */
     function isMainRole(c){ return typeof c.order === "number" ? c.order <= 5 : false; }
     function splitRoles(credits){
       const movies = (credits.cast||[]).filter(r => r.media_type === "movie");
@@ -408,48 +402,59 @@
     async function renderActorBreakdowns(personId, personName){
       const mount = document.getElementById("actorBreakdowns");
       mount.innerHTML = `<div class='small'>Loading ${safe(personName)}’s roles…</div>`;
-      const credits = await fetch(`${TMDB_BASE}/person/${personId}/combined_credits`, auth).then(r=>r.json());
-      const split = splitRoles(credits);
-      // Prefetch provider info (light cache)
-      const all = [...split.movie.main, ...split.movie.appearances, ...split.tv.main, ...split.tv.appearances].slice(0,72);
-      const cache = {};
-      await Promise.all(all.map(async it=>{
-        cache[`${it.media_type}-${it.id}`] = await getProviders(it.id, it.media_type);
-      }));
-      const grid = (items, media) => items.slice(0,24).map(it=>resultTile({...it, media_type:media}, cache[`${media}-${it.id}`]||{})).join("");
-
-      mount.innerHTML = `
-        <div class="section-title">Movies — Main roles</div>
-        <div class="results">${ grid(split.movie.main, "movie") }</div>
-        <div class="section-title">Movies — Appearances</div>
-        <div class="results">${ grid(split.movie.appearances, "movie") }</div>
-        <div class="section-title">TV — Main roles</div>
-        <div class="results">${ grid(split.tv.main, "tv") }</div>
-        <div class="section-title">TV — Appearances</div>
-        <div class="results">${ grid(split.tv.appearances, "tv") }</div>
-      `;
+      try{
+        const credits = await fetch(`${TMDB_BASE}/person/${personId}/combined_credits?language=en-US`, auth).then(r=>r.json());
+        const split = splitRoles(credits);
+        // prefetch provider info for speed
+        const all = [...split.movie.main, ...split.movie.appearances, ...split.tv.main, ...split.tv.appearances].slice(0,72);
+        const cache = {};
+        await Promise.all(all.map(async it=>{
+          cache[`${it.media_type}-${it.id}`] = await getProviders(it.id, it.media_type);
+        }));
+        const grid = (items, media) => items.slice(0,24).map(it=>resultTile({...it, media_type:media}, cache[`${media}-${it.id}`]||{})).join("");
+        mount.innerHTML = `
+          <div class="section-title">Movies — Main roles</div>
+          <div class="results">${ grid(split.movie.main, "movie") }</div>
+          <div class="section-title">Movies — Appearances</div>
+          <div class="results">${ grid(split.movie.appearances, "movie") }</div>
+          <div class="section-title">TV — Main roles</div>
+          <div class="results">${ grid(split.tv.main, "tv") }</div>
+          <div class="section-title">TV — Appearances</div>
+          <div class="results">${ grid(split.tv.appearances, "tv") }</div>
+        `;
+      }catch(err){
+        mount.innerHTML = `<div class="small">Couldn’t load roles right now. Please try again.</div>`;
+      }
     }
-    async function searchActors(){
-      const q = document.getElementById("actorQuery").value.trim();
-      if(!q) return;
+
+    async function runActorSearch(query){
       const list = document.getElementById("actorList");
-      const res = await fetch(`${TMDB_BASE}/search/person?query=${encodeURIComponent(q)}`, auth).then(r=>r.json());
-      const people = res.results || [];
-      list.innerHTML = ""; document.getElementById("actorBreakdowns").innerHTML = "";
-      if(!people.length){ list.innerHTML = "<div class='small'>No actors found.</div>"; return; }
-      people.slice(0,12).forEach(p=>{
-        const card = document.createElement("div");
-        card.className = "tile";
-        card.innerHTML = `
-          <img src="${smallPoster(p.profile_path)}" alt="">
-          <div class="meta">
-            <div class="title">${safe(p.name)}</div>
-            <div class="sub">${(p.known_for_department||'').toUpperCase()}</div>
-            <div class="small">${(p.known_for||[]).filter(x=>x.title||x.name).slice(0,2).map(x=>safe(x.title||x.name)).join(" • ")}</div>
-          </div>`;
-        card.addEventListener("click", ()=>renderActorBreakdowns(p.id, p.name));
-        list.appendChild(card);
-      });
+      const breakdowns = document.getElementById("actorBreakdowns");
+      if(!query){ list.innerHTML = ""; breakdowns.innerHTML = ""; return; }
+      list.innerHTML = "<div class='small'>Searching actors…</div>";
+      try{
+        const url = `${TMDB_BASE}/search/person?query=${encodeURIComponent(query)}&include_adult=false&language=en-US`;
+        const res = await fetch(url, auth).then(r=>r.json());
+        const people = res.results || [];
+        list.innerHTML = "";
+        breakdowns.innerHTML = "";
+        if(!people.length){ list.innerHTML = "<div class='small'>No actors found.</div>"; return; }
+        people.slice(0,12).forEach(p=>{
+          const card = document.createElement("div");
+          card.className = "tile";
+          card.innerHTML = `
+            <img src="${smallPoster(p.profile_path)}" alt="">
+            <div class="meta">
+              <div class="title">${safe(p.name)}</div>
+              <div class="sub">${(p.known_for_department||'').toUpperCase()}</div>
+              <div class="small">${(p.known_for||[]).filter(x=>x.title||x.name).slice(0,2).map(x=>safe(x.title||x.name)).join(" • ")}</div>
+            </div>`;
+          card.addEventListener("click", ()=>renderActorBreakdowns(p.id, p.name));
+          list.appendChild(card);
+        });
+      }catch(err){
+        list.innerHTML = "<div class='small'>Actor search failed. Check your connection and try again.</div>";
+      }
     }
 
     /* ====== TABS / HOME ====== */
@@ -471,21 +476,33 @@
     /* ====== EVENTS ====== */
     document.getElementById("go").addEventListener("click", doSearch);
     document.getElementById("q").addEventListener("keydown", e=>{ if(e.key==="Enter") doSearch(); });
-    document.getElementById("showGenresBtn").addEventListener("click", async ()=>{ await loadGenresIfNeeded(); renderGenreChips(); });
-    document.getElementById("genreType").addEventListener("change", ()=>{ if(window.__genresLoaded && document.getElementById("genreChips").classList.contains("show")) renderGenreChips(); });
+
+    document.getElementById("genreType").addEventListener("change", renderGenreChips);
+
     document.getElementById("serviceType").addEventListener("change", populateServiceGenres);
     document.getElementById("serviceGo").addEventListener("click", doServiceSearch);
     document.getElementById("serviceQuery").addEventListener("keydown", e=>{ if(e.key==="Enter") doServiceSearch(); });
-    
+
+    // Actor search: button, Enter, and type-ahead (debounced)
+    document.getElementById("actorGo").addEventListener("click", ()=>runActorSearch(document.getElementById("actorQuery").value.trim()));
+    document.getElementById("actorQuery").addEventListener("keydown", e=>{ if(e.key==="Enter") runActorSearch(e.target.value.trim()); });
+    let actorDebounce;
+    document.getElementById("actorQuery").addEventListener("input", e=>{
+      clearTimeout(actorDebounce);
+      const v = e.target.value.trim();
+      actorDebounce = setTimeout(()=>{ if(v.length>=2) runActorSearch(v); }, 400);
+    });
+
     /* ====== INIT ====== */
     spawnFallingPosters();     // clickable background posters
-    populateServiceGenres();   // pre-seed genres in By Service tab
+    loadGenres();              // load both movie & tv genres
+    populateServiceGenres();   // seed genres in By Service tab
   </script>
 
   <!-- PWA SW registration; bump query to bust cache if updating -->
   <script>
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js?v=streamdeck-bg-covers-deeplinks-1').catch(()=>{});
+      navigator.serviceWorker.register('sw.js?v=streamdeck-genres-always-actors-fix-1').catch(()=>{});
     }
   </script>
 </body>

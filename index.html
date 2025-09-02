@@ -74,7 +74,7 @@
     .links{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
     .linkbtn{font-size:.85rem;background:#0e1a66;color:var(--text);border:1px solid rgba(255,255,255,.22);padding:6px 10px;border-radius:999px;text-decoration:none;box-shadow:var(--glow)}
 
-    /* Provider logo buttons (inline SVG) */
+    /* Provider brand logo buttons */
     .logoLinks{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px}
     .logoLink{
       display:inline-flex;align-items:center;justify-content:center;
@@ -83,7 +83,7 @@
       box-shadow:var(--glow);text-decoration:none;overflow:hidden;transition:transform .06s ease
     }
     .logoLink:hover{transform:translateY(-1px)}
-    .logoSvg{width:38px;height:38px;display:block}
+    .logoSvgImg{width:28px;height:28px;display:block;filter:brightness(0) invert(1)} /* make the monochrome SVG white */
 
     .note{color:var(--muted);font-size:.9rem;margin-top:8px}
 
@@ -217,32 +217,49 @@
     const safe = (s) => (s||"").replace(/</g,"&lt;").replace(/>/g,"&gt;");
     const norm = (name) => (name||"").replace(/\s*\+\s*/g,"+").replace(/ plus$/i,"+").replace(/\s+/g," ").trim();
 
-    /* ====== Inline SVG badges for providers ====== */
-    function badgeInline({bg="#111", fg="#fff", text="?"}){
-      return `
-        <svg class="logoSvg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" aria-hidden="true" focusable="false">
-          <rect rx="24" ry="24" x="4" y="4" width="112" height="112" fill="${bg}"/>
-          <text x="50%" y="54%" dominant-baseline="middle" text-anchor="middle"
-                font-family="Inter,Segoe UI,Arial" font-size="44" fill="${fg}" font-weight="800">
-            ${text}
-          </text>
-        </svg>`;
+    /* ====== Brand logo mapping (Simple Icons) ====== */
+    // Map providerName -> { slug, bg }  (slug is the file name on cdn.jsdelivr.net/npm/simple-icons/icons/)
+    const BRAND = {
+      "netflix":             { slug:"netflix",           bg:"#E50914" },
+      "hulu":                { slug:"hulu",              bg:"#1CE783" },
+      "disney+":             { slug:"disneyplus",        bg:"#113CCF" },
+      "max":                 { slug:"max",               bg:"#6E55FF" },
+      "amazon prime video":  { slug:"prime",             bg:"#00A8E1" }, // 'prime' icon is the Prime mark
+      "prime video":         { slug:"prime",             bg:"#00A8E1" },
+      "amazon video":        { slug:"prime",             bg:"#00A8E1" },
+      "apple tv+":           { slug:"appletv",           bg:"#000000" },
+      "apple tv plus":       { slug:"appletv",           bg:"#000000" },
+      "appletv+":            { slug:"appletv",           bg:"#000000" },
+      "peacock":             { slug:"peacock",           bg:"#000000" },
+      "paramount+":          { slug:"paramountplus",     bg:"#0064FF" },
+      "crunchyroll":         { slug:"crunchyroll",       bg:"#F47521" },
+    };
+
+    function brandKey(name){
+      return (name||"").trim().toLowerCase();
     }
-    function providerLogoInline(name){
-      const n = (name||"").trim().toLowerCase();
-      if (n==="netflix")     return badgeInline({bg:"#e50914", fg:"#fff", text:"N"});
-      if (n==="hulu")        return badgeInline({bg:"#1ce783", fg:"#03120b", text:"h"});
-      if (n==="disney+")     return badgeInline({bg:"#113ccf", fg:"#fff", text:"D+"});
-      if (n==="max")         return badgeInline({bg:"#6e55ff", fg:"#fff", text:"Max"});
-      if (n==="amazon prime video" || n==="prime video" || n==="amazon video")
-                             return badgeInline({bg:"#00a8e1", fg:"#031b24", text:"PV"});
-      if (n==="apple tv+" || n==="apple tv plus" || n==="appletv+")
-                             return badgeInline({bg:"#111", fg:"#fff", text:"TV+"});
-      if (n==="peacock")     return badgeInline({bg:"#111", fg:"#ffd166", text:"P"});
-      if (n==="paramount+")  return badgeInline({bg:"#0064ff", fg:"#fff", text:"P+"});
-      if (n==="crunchyroll") return badgeInline({bg:"#ff7f00", fg:"#101010", text:"cr"});
-      const initials = name?.split(/\s+/).map(w=>w[0]).join("").slice(0,3).toUpperCase() || "?";
-      return badgeInline({bg:"#2b3277", fg:"#fff", text:initials});
+    function providerBrandInfo(name){
+      const k = brandKey(name);
+      return BRAND[k] || null;
+    }
+    function providerLogoHTML(providerName){
+      const info = providerBrandInfo(providerName);
+      if (info){
+        const src = `https://cdn.jsdelivr.net/npm/simple-icons/icons/${info.slug}.svg`;
+        // Branded background with white-inverted monochrome logo
+        return `
+          <div class="logoLink" style="background:${info.bg}">
+            <img class="logoSvgImg" src="${src}" alt="${safe(providerName)} logo" loading="lazy">
+          </div>
+        `;
+      }
+      // Fallback badge (initials)
+      const initials = (providerName||"?").split(/\s+/).map(w=>w[0]).join("").slice(0,3).toUpperCase();
+      return `
+        <div class="logoLink" style="background:#2b3277;border-color:rgba(255,255,255,.25)">
+          <span style="font-weight:900;color:#fff;letter-spacing:.02em">${initials}</span>
+        </div>
+      `;
     }
 
     /* ====== Falling posters ====== */
@@ -321,13 +338,13 @@
       const seen = new Set();
       const btns = [];
       combined.forEach(p=>{
-        const key = (p.provider_name||"").trim().toLowerCase();
+        const raw = (p.provider_name||"").trim();
+        const key = raw.toLowerCase();
         if(seen.has(key)) return; seen.add(key);
-        const url = providerTitleURL(p.provider_name, title, year);
-        const svg = providerLogoInline(p.provider_name);
+        const url = providerTitleURL(raw, title, year);
         btns.push(`
-          <a class="logoLink" target="_blank" rel="noopener" href="${url}" title="Open on ${safe(p.provider_name)}">
-            ${svg}
+          <a class="logoLink" target="_blank" rel="noopener" href="${url}" title="Open on ${safe(raw)}">
+            ${providerLogoHTML(raw)}
           </a>
         `);
       });
@@ -336,7 +353,7 @@
           <a class="logoLink" target="_blank" rel="noopener"
              href="https://www.google.com/search?q=${encodeURIComponent(`"${title}" ${year||""} watch`) }"
              title="Find streaming options">
-            ${badgeInline({bg:'#0e1a66', fg:'#fff', text:'?'})}
+            <div class="logoSvgImg" style="filter:none;width:auto;height:auto;color:#fff;display:flex;align-items:center;justify-content:center">?</div>
           </a>
         `);
       }
@@ -603,7 +620,6 @@
     /* ====== EVENTS ====== */
     document.querySelectorAll(".tabbtn").forEach(b=> b.addEventListener("click", ()=>{
       activateTab(b.dataset.tab);
-      if(b.dataset.tab==="service"){ /* keep selection; genres already populated */ }
     }));
     document.getElementById("homeLogo").addEventListener("click", ()=>{
       activateTab("search");
@@ -636,7 +652,7 @@
   <!-- PWA SW registration; bump query to bust cache if updating -->
   <script>
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js?v=streamdeck-logos-inline-v2').catch(()=>{});
+      navigator.serviceWorker.register('sw.js?v=streamdeck-brand-logos-v1').catch(()=>{});
     }
   </script>
 </body>

@@ -17,17 +17,36 @@
     body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);overflow-x:hidden}
     a{color:inherit}
 
-    /* Falling posters background (clickable, infinite) */
-    #falling-bg{position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.28}
+    /* ===== Falling posters (home only) ===== */
+    #falling-bg{
+      position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.28;
+      contain:strict;
+    }
+    #falling-bg.hidden{display:none} /* hide when not on Home */
+
     .posterLink{
       position:absolute;top:-260px;width:140px;height:210px;border-radius:12px;
       box-shadow:0 14px 34px rgba(0,0,0,.55);overflow:hidden;pointer-events:auto;cursor:pointer;
-      animation:fallLoop linear infinite;
+      will-change:transform,opacity;backface-visibility:hidden;transform:translate3d(0,-260px,0) rotate(var(--rot)) scale(var(--scale));
+      animation:
+        fallLoop var(--dur)s var(--delay)s cubic-bezier(.22,.61,.22,1) infinite,
+        swayLoop var(--swayDur)s var(--swayDelay)s ease-in-out infinite;
     }
-    .posterLink img{width:100%;height:100%;object-fit:cover;display:block}
+    .posterLink img{
+      width:100%;height:100%;object-fit:cover;display:block;filter:blur(var(--blur)) saturate(1.02);
+      image-rendering:auto;decoding:async;loading:lazy;fetchpriority:auto;
+    }
+
+    /* Vertical fall (GPU-accelerated) */
     @keyframes fallLoop{
-      0%   { transform:translateY(-260px) rotate(var(--rot)); opacity:.95 }
-      100% { transform:translateY(110vh) rotate(var(--rot)); opacity:.95 }
+      0%   { transform:translate3d(0,-260px,0) rotate(var(--rot)) scale(var(--scale)); opacity:.95 }
+      100% { transform:translate3d(0,110vh,0) rotate(var(--rot)) scale(var(--scale)); opacity:.95 }
+    }
+    /* Gentle side-to-side sway */
+    @keyframes swayLoop{
+      0%   { margin-left: -8px }
+      50%  { margin-left: 8px }
+      100% { margin-left: -8px }
     }
 
     .wrap{max-width:1140px;margin:0 auto;padding:22px;position:relative;z-index:1}
@@ -81,7 +100,7 @@
     .links{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
     .linkbtn{font-size:.85rem;background:#0e1a66;color:var(--text);border:1px solid rgba(255,255,255,.22);padding:6px 10px;border-radius:999px;text-decoration:none;box-shadow:var(--glow)}
 
-    /* Provider brand logo buttons (TMDB logos) */
+    /* Provider brand logos (TMDB) */
     .logoLinks{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px}
     .logoLink{
       display:inline-flex;align-items:center;justify-content:center;
@@ -94,7 +113,7 @@
 
     .note{color:var(--muted);font-size:.9rem;margin-top:8px}
 
-    /* Always-visible genre chips */
+    /* Genres */
     .chips{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
     .gchip{background:linear-gradient(135deg,var(--accent3),var(--accent4));color:#06132c;border:none;padding:10px 14px;border-radius:999px;cursor:pointer;box-shadow:0 8px 20px rgba(255,209,102,.25), 0 0 18px rgba(134,255,183,.25);transition:transform .06s ease, filter .15s ease}
     .gchip:hover{transform:translateY(-1px);filter:brightness(1.06)}
@@ -102,10 +121,15 @@
 
     .section-title{margin:18px 0 6px;font-weight:900;color:var(--accent3);text-transform:uppercase;letter-spacing:.06em;font-size:.95rem}
     .small{font-size:.9rem;color:var(--muted)}
+
+    /* Reduce motion preference */
+    @media (prefers-reduced-motion: reduce){
+      .posterLink{animation:none}
+    }
   </style>
 </head>
 <body>
-  <div id="falling-bg"></div>
+  <div id="falling-bg" class="hidden"></div>
 
   <div class="wrap">
     <header>
@@ -215,7 +239,7 @@
     /* ====== CONFIG / HELPERS ====== */
     const TMDB_TOKEN = "eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiI2NGIzNmM0ZDNjODJlMmRiYzIyNjQzOTNhZjFlZTU2YyIsIm5iZiI6MTc1Njc2NTU2NS4zNzY5OTk5LCJzdWIiOiI2OGI2MWQ3ZDM1MGMzZWVlZTViNGZhZTQiLCJzY29wZXMiOlsiYXBpX3JlYWQiXSwidmVyc2lvbiI6MX0.hdDZK83KYkHjo_zpD0SHKH0K86IeLkwIiBpWVmOzgww";
     const TMDB_BASE = "https://api.themoviedb.org/3";
-    const TMDB_IMG  = "https://image.tmdb.org/t/p"; // /original or /w500 etc.
+    const TMDB_IMG  = "https://image.tmdb.org/t/p";
     const REGION = "US";
     const auth = { headers: { Authorization: `Bearer ${TMDB_TOKEN}` } };
 
@@ -225,19 +249,30 @@
     const safe = (s) => (s||"").replace(/</g,"&lt;").replace(/>/g,"&gt;");
     const norm = (name) => (name||"").replace(/\s*\+\s*/g,"+").replace(/ plus$/i,"+").replace(/\s+/g," ").trim();
 
-    /* ====== FALLING POSTERS (endless) ====== */
-    let postersPool = []; // trending posters cache
+    /* ====== FALLING POSTERS (smooth & home-only) ====== */
+    let postersPool = [];
     let postersSpawned = false;
 
+    function randomIn(min,max){ return min + Math.random()*(max-min); }
+
     function randomizeFaller(el){
-      const left = Math.random()*100;
-      const dur = 12 + Math.random()*18; // 12s–30s
-      const rot = (Math.random()*40-20)+'deg';
-      const delay = Math.random()*-22; // negative to stagger immediately
-      el.style.left = `calc(${left}vw - 70px)`;
-      el.style.animationDuration = `${dur}s`;
-      el.style.animationDelay = `${delay}s`;
+      const leftVW = Math.random()*100;
+      const dur    = randomIn(14, 28);            // slower = smoother
+      const delay  = randomIn(-20, 0);            // negative to start staggered
+      const rot    = (Math.random()*40-20)+'deg'; // gentle rotation
+      const scale  = randomIn(0.82, 1.08);        // depth
+      const blur   = (1.2 - (scale-0.82)) * 0.6;  // subtle depth blur
+      const swayDur   = randomIn(4, 7);           // side sway period
+      const swayDelay = randomIn(-6, 0);
+
+      el.style.left = `calc(${leftVW}vw - 70px)`;
+      el.style.setProperty('--dur', dur.toFixed(2));
+      el.style.setProperty('--delay', delay.toFixed(2));
       el.style.setProperty('--rot', rot);
+      el.style.setProperty('--scale', scale.toFixed(2));
+      el.style.setProperty('--blur', blur.toFixed(2)+'px');
+      el.style.setProperty('--swayDur', swayDur.toFixed(2));
+      el.style.setProperty('--swayDelay', swayDelay.toFixed(2));
     }
 
     function assignRandomPoster(el){
@@ -255,7 +290,6 @@
         const bg = document.getElementById('falling-bg');
         bg.innerHTML = "";
 
-        // get/refresh trending pool
         const res = await fetch(`${TMDB_BASE}/trending/movie/day`, auth);
         const data = await res.json();
         postersPool = (data.results||[]).filter(x=>x.poster_path);
@@ -269,10 +303,8 @@
           assignRandomPoster(a);
           randomizeFaller(a);
           a.addEventListener('click', handlePosterClick);
-          // on each loop, randomize and swap poster for continuous rain
           a.addEventListener('animationiteration', ()=>{
             randomizeFaller(a);
-            // ~50% chance to swap the poster each loop
             if (Math.random() < 0.5) assignRandomPoster(a);
           });
           bg.appendChild(a);
@@ -280,9 +312,19 @@
         postersSpawned = true;
       }catch(e){ /* ignore */ }
     }
-    function ensureFallingPosters(){
+    function setFallingActive(on){
       const bg = document.getElementById('falling-bg');
-      if (!postersSpawned || !bg || bg.childElementCount === 0) spawnFallingPosters();
+      if (!bg) return;
+      if (on){
+        bg.classList.remove('hidden');
+        // spawn (if needed) and resume
+        if (!postersSpawned || bg.childElementCount===0) spawnFallingPosters();
+        bg.querySelectorAll('.posterLink').forEach(el=> el.style.animationPlayState = 'running');
+      } else {
+        // pause + hide to save GPU
+        bg.querySelectorAll('.posterLink').forEach(el=> el.style.animationPlayState = 'paused');
+        bg.classList.add('hidden');
+      }
     }
 
     /* ====== Provider deep links ====== */
@@ -313,7 +355,6 @@
     }
 
     /* ====== TMDB Provider logos ====== */
-    // Uses provUS[*].logo_path from /watch/providers response. Falls back to initials badge.
     function providerLogoImg(provider){
       const name = provider.provider_name || "Provider";
       const logo = provider.logo_path ? `${TMDB_IMG}/w92${provider.logo_path}` : "";
@@ -428,7 +469,7 @@
       window.__genres = { movie:(gm.genres||[]), tv:(gt.genres||[]) };
       renderGenreChips();
       seedRandomGenreSelects();
-      populateServiceGenres();  // initial fill for Service tab
+      populateServiceGenres();
     }
     function renderGenreChips(){
       const type = document.getElementById("genreType").value;
@@ -612,7 +653,7 @@
     function activateTab(id){
       document.querySelectorAll(".tabbtn").forEach(x=>x.classList.toggle("active", x.dataset.tab===id));
       document.querySelectorAll(".panel").forEach(p=>p.classList.toggle("active", p.id===id));
-      if(id==="search"){ ensureFallingPosters(); }
+      setFallingActive(id==="search");  // <-- only on Home
       window.scrollTo({top:0,behavior:"smooth"});
     }
 
@@ -641,15 +682,16 @@
     document.getElementById("randType").addEventListener("change", seedRandomGenreSelects);
 
     /* ====== INIT ====== */
-    spawnFallingPosters();       // endless rain starts
+    // Start on Home with smooth rain
+    spawnFallingPosters().then(()=>setFallingActive(true));
     loadGenres();
-    (async()=>{ await loadProviderIds(); })(); // warm provider maps
+    (async()=>{ await loadProviderIds(); })();
   </script>
 
   <!-- PWA SW registration; bump query to bust cache if updating -->
   <script>
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js?v=logos-tmdb-and-infinite-fall-v3').catch(()=>{});
+      navigator.serviceWorker.register('sw.js?v=home-only-smooth-fall-v1').catch(()=>{});
     }
   </script>
 </body>

@@ -17,11 +17,18 @@
     body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);overflow-x:hidden}
     a{color:inherit}
 
-    /* Falling posters background (clickable) */
+    /* Falling posters background (clickable, infinite) */
     #falling-bg{position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.28}
-    .posterLink{position:absolute;top:-260px;width:140px;height:210px;border-radius:12px;box-shadow:0 14px 34px rgba(0,0,0,.55);overflow:hidden;animation:fall linear forwards;pointer-events:auto;cursor:pointer}
+    .posterLink{
+      position:absolute;top:-260px;width:140px;height:210px;border-radius:12px;
+      box-shadow:0 14px 34px rgba(0,0,0,.55);overflow:hidden;pointer-events:auto;cursor:pointer;
+      animation:fallLoop linear infinite;
+    }
     .posterLink img{width:100%;height:100%;object-fit:cover;display:block}
-    @keyframes fall{to{transform:translateY(150vh) rotate(var(--rot));opacity:.95}}
+    @keyframes fallLoop{
+      0%   { transform:translateY(-260px) rotate(var(--rot)); opacity:.95 }
+      100% { transform:translateY(110vh) rotate(var(--rot)); opacity:.95 }
+    }
 
     .wrap{max-width:1140px;margin:0 auto;padding:22px;position:relative;z-index:1}
     header{display:flex;align-items:center;gap:14px;margin-bottom:6px}
@@ -74,16 +81,16 @@
     .links{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
     .linkbtn{font-size:.85rem;background:#0e1a66;color:var(--text);border:1px solid rgba(255,255,255,.22);padding:6px 10px;border-radius:999px;text-decoration:none;box-shadow:var(--glow)}
 
-    /* Provider brand logo buttons */
+    /* Provider brand logo buttons (TMDB logos) */
     .logoLinks{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px}
     .logoLink{
       display:inline-flex;align-items:center;justify-content:center;
-      width:46px;height:46px;border-radius:12px;
-      background:#0e1a66;border:1px solid rgba(255,255,255,.22);
+      width:46px;height:46px;border-radius:12px;background:#0e1a66;
+      border:1px solid rgba(255,255,255,.22);
       box-shadow:var(--glow);text-decoration:none;overflow:hidden;transition:transform .06s ease
     }
     .logoLink:hover{transform:translateY(-1px)}
-    .logoSvgImg{width:28px;height:28px;display:block;filter:brightness(0) invert(1)} /* make the monochrome SVG white */
+    .logoImg{width:38px;height:38px;object-fit:contain;display:block;background:#0000}
 
     .note{color:var(--muted);font-size:.9rem;margin-top:8px}
 
@@ -174,7 +181,7 @@
       </div>
     </section>
 
-    <!-- GENRES (always-visible list) -->
+    <!-- GENRES -->
     <section id="genres" class="panel">
       <div class="card">
         <div class="row" style="margin-bottom:10px">
@@ -208,89 +215,66 @@
     /* ====== CONFIG / HELPERS ====== */
     const TMDB_TOKEN = "eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiI2NGIzNmM0ZDNjODJlMmRiYzIyNjQzOTNhZjFlZTU2YyIsIm5iZiI6MTc1Njc2NTU2NS4zNzY5OTk5LCJzdWIiOiI2OGI2MWQ3ZDM1MGMzZWVlZTViNGZhZTQiLCJzY29wZXMiOlsiYXBpX3JlYWQiXSwidmVyc2lvbiI6MX0.hdDZK83KYkHjo_zpD0SHKH0K86IeLkwIiBpWVmOzgww";
     const TMDB_BASE = "https://api.themoviedb.org/3";
+    const TMDB_IMG  = "https://image.tmdb.org/t/p"; // /original or /w500 etc.
     const REGION = "US";
     const auth = { headers: { Authorization: `Bearer ${TMDB_TOKEN}` } };
 
-    const poster = (p, size="w342") => p ? `https://image.tmdb.org/t/p/${size}${p}` : "https://via.placeholder.com/140x210?text=No+Image";
-    const smallPoster = (p) => p ? `https://image.tmdb.org/t/p/w185${p}` : "https://via.placeholder.com/100x150?text=No+Image";
+    const poster = (p, size="w342") => p ? `${TMDB_IMG}/${size}${p}` : "https://via.placeholder.com/140x210?text=No+Image";
+    const smallPoster = (p) => p ? `${TMDB_IMG}/w185${p}` : "https://via.placeholder.com/100x150?text=No+Image";
     const yearOf = (d) => d ? (d.split("-")[0]||"") : "";
     const safe = (s) => (s||"").replace(/</g,"&lt;").replace(/>/g,"&gt;");
     const norm = (name) => (name||"").replace(/\s*\+\s*/g,"+").replace(/ plus$/i,"+").replace(/\s+/g," ").trim();
 
-    /* ====== Brand logo mapping (Simple Icons) ====== */
-    // Map providerName -> { slug, bg }  (slug is the file name on cdn.jsdelivr.net/npm/simple-icons/icons/)
-    const BRAND = {
-      "netflix":             { slug:"netflix",           bg:"#E50914" },
-      "hulu":                { slug:"hulu",              bg:"#1CE783" },
-      "disney+":             { slug:"disneyplus",        bg:"#113CCF" },
-      "max":                 { slug:"max",               bg:"#6E55FF" },
-      "amazon prime video":  { slug:"prime",             bg:"#00A8E1" }, // 'prime' icon is the Prime mark
-      "prime video":         { slug:"prime",             bg:"#00A8E1" },
-      "amazon video":        { slug:"prime",             bg:"#00A8E1" },
-      "apple tv+":           { slug:"appletv",           bg:"#000000" },
-      "apple tv plus":       { slug:"appletv",           bg:"#000000" },
-      "appletv+":            { slug:"appletv",           bg:"#000000" },
-      "peacock":             { slug:"peacock",           bg:"#000000" },
-      "paramount+":          { slug:"paramountplus",     bg:"#0064FF" },
-      "crunchyroll":         { slug:"crunchyroll",       bg:"#F47521" },
-    };
-
-    function brandKey(name){
-      return (name||"").trim().toLowerCase();
-    }
-    function providerBrandInfo(name){
-      const k = brandKey(name);
-      return BRAND[k] || null;
-    }
-    function providerLogoHTML(providerName){
-      const info = providerBrandInfo(providerName);
-      if (info){
-        const src = `https://cdn.jsdelivr.net/npm/simple-icons/icons/${info.slug}.svg`;
-        // Branded background with white-inverted monochrome logo
-        return `
-          <div class="logoLink" style="background:${info.bg}">
-            <img class="logoSvgImg" src="${src}" alt="${safe(providerName)} logo" loading="lazy">
-          </div>
-        `;
-      }
-      // Fallback badge (initials)
-      const initials = (providerName||"?").split(/\s+/).map(w=>w[0]).join("").slice(0,3).toUpperCase();
-      return `
-        <div class="logoLink" style="background:#2b3277;border-color:rgba(255,255,255,.25)">
-          <span style="font-weight:900;color:#fff;letter-spacing:.02em">${initials}</span>
-        </div>
-      `;
-    }
-
-    /* ====== Falling posters ====== */
+    /* ====== FALLING POSTERS (endless) ====== */
+    let postersPool = []; // trending posters cache
     let postersSpawned = false;
+
+    function randomizeFaller(el){
+      const left = Math.random()*100;
+      const dur = 12 + Math.random()*18; // 12s–30s
+      const rot = (Math.random()*40-20)+'deg';
+      const delay = Math.random()*-22; // negative to stagger immediately
+      el.style.left = `calc(${left}vw - 70px)`;
+      el.style.animationDuration = `${dur}s`;
+      el.style.animationDelay = `${delay}s`;
+      el.style.setProperty('--rot', rot);
+    }
+
+    function assignRandomPoster(el){
+      if (!postersPool.length) return;
+      const item = postersPool[Math.floor(Math.random()*postersPool.length)];
+      el.dataset.id = String(item.id);
+      el.dataset.title = item.title || item.name || "";
+      el.dataset.year = yearOf(item.release_date || item.first_air_date || "");
+      const imgEl = el.querySelector('img');
+      imgEl.src = poster(item.poster_path,'w342');
+    }
+
     async function spawnFallingPosters(){
       try{
         const bg = document.getElementById('falling-bg');
         bg.innerHTML = "";
+
+        // get/refresh trending pool
         const res = await fetch(`${TMDB_BASE}/trending/movie/day`, auth);
         const data = await res.json();
-        const items = (data.results||[]).filter(x=>x.poster_path).slice(0,24);
-        const columns = Math.min(18, Math.max(10, Math.floor(window.innerWidth/90)));
+        postersPool = (data.results||[]).filter(x=>x.poster_path);
+        if (!postersPool.length) return;
+
+        const columns = Math.min(20, Math.max(12, Math.floor(window.innerWidth/90)));
         for(let i=0;i<columns;i++){
-          const item = items[i % items.length];
           const a = document.createElement('div');
           a.className = 'posterLink';
-          a.dataset.id = String(item.id);
-          a.dataset.title = item.title || item.name || "";
-          a.dataset.year = yearOf(item.release_date || item.first_air_date || "");
-          const imgEl = document.createElement('img');
-          imgEl.src = poster(item.poster_path,'w342');
-          a.appendChild(imgEl);
-          const left = Math.random()*100;
-          const dur = 12 + Math.random()*18;
-          const delay = Math.random()*-22;
-          const rot = (Math.random()*40-20)+'deg';
-          a.style.left = `calc(${left}vw - 70px)`;
-          a.style.animationDuration = `${dur}s`;
-          a.style.animationDelay = `${delay}s`;
-          a.style.setProperty('--rot', rot);
+          a.innerHTML = `<img alt="">`;
+          assignRandomPoster(a);
+          randomizeFaller(a);
           a.addEventListener('click', handlePosterClick);
+          // on each loop, randomize and swap poster for continuous rain
+          a.addEventListener('animationiteration', ()=>{
+            randomizeFaller(a);
+            // ~50% chance to swap the poster each loop
+            if (Math.random() < 0.5) assignRandomPoster(a);
+          });
           bg.appendChild(a);
         }
         postersSpawned = true;
@@ -327,9 +311,18 @@
       if (n==="Max") return `https://www.google.com/search?btnI=1&q=${encodeURIComponent(`site:max.com "${title}" ${year||""}`)}`;
       return `https://www.google.com/search?btnI=1&q=${encodeURIComponent(`site:${providerDomainGuess(n)} "${title}" ${year||""}`)}`;
     }
-    async function getProviders(id, media){
-      const r = await fetch(`${TMDB_BASE}/${media}/${id}/watch/providers`, auth);
-      return r.json();
+
+    /* ====== TMDB Provider logos ====== */
+    // Uses provUS[*].logo_path from /watch/providers response. Falls back to initials badge.
+    function providerLogoImg(provider){
+      const name = provider.provider_name || "Provider";
+      const logo = provider.logo_path ? `${TMDB_IMG}/w92${provider.logo_path}` : "";
+      if (logo){
+        return `<img class="logoImg" src="${logo}" alt="${safe(name)} logo" loading="lazy">`;
+      } else {
+        const initials = name.split(/\s+/).map(w=>w[0]).join("").slice(0,3).toUpperCase();
+        return `<span style="font-weight:900;color:#fff;letter-spacing:.02em">${initials}</span>`;
+      }
     }
 
     /* ====== Tiles & buttons ====== */
@@ -344,7 +337,7 @@
         const url = providerTitleURL(raw, title, year);
         btns.push(`
           <a class="logoLink" target="_blank" rel="noopener" href="${url}" title="Open on ${safe(raw)}">
-            ${providerLogoHTML(raw)}
+            ${providerLogoImg(p)}
           </a>
         `);
       });
@@ -353,7 +346,7 @@
           <a class="logoLink" target="_blank" rel="noopener"
              href="https://www.google.com/search?q=${encodeURIComponent(`"${title}" ${year||""} watch`) }"
              title="Find streaming options">
-            <div class="logoSvgImg" style="filter:none;width:auto;height:auto;color:#fff;display:flex;align-items:center;justify-content:center">?</div>
+            <span style="font-weight:900;color:#fff">?</span>
           </a>
         `);
       }
@@ -380,6 +373,12 @@
             ${providerButtons(title, y, us)}
           </div>
         </div>`;
+    }
+
+    /* ====== API helpers ====== */
+    async function getProviders(id, media){
+      const r = await fetch(`${TMDB_BASE}/${media}/${id}/watch/providers`, auth);
+      return r.json();
     }
 
     /* ====== MAIN SEARCH ====== */
@@ -420,7 +419,7 @@
       doSearch();
     }
 
-    /* ====== GENRES (always visible) ====== */
+    /* ====== GENRES ====== */
     async function loadGenres(){
       const [gm, gt] = await Promise.all([
         fetch(`${TMDB_BASE}/genre/movie/list`, auth).then(r=>r.json()),
@@ -459,7 +458,7 @@
       }
     }
 
-    /* ====== BY SERVICE — fixed genre selection ====== */
+    /* ====== BY SERVICE ====== */
     let provLoaded = false;
     async function loadProviderIds(){
       if (provLoaded) return;
@@ -618,9 +617,7 @@
     }
 
     /* ====== EVENTS ====== */
-    document.querySelectorAll(".tabbtn").forEach(b=> b.addEventListener("click", ()=>{
-      activateTab(b.dataset.tab);
-    }));
+    document.querySelectorAll(".tabbtn").forEach(b=> b.addEventListener("click", ()=>{ activateTab(b.dataset.tab); }));
     document.getElementById("homeLogo").addEventListener("click", ()=>{
       activateTab("search");
       document.getElementById("q").value="";
@@ -644,7 +641,7 @@
     document.getElementById("randType").addEventListener("change", seedRandomGenreSelects);
 
     /* ====== INIT ====== */
-    spawnFallingPosters();
+    spawnFallingPosters();       // endless rain starts
     loadGenres();
     (async()=>{ await loadProviderIds(); })(); // warm provider maps
   </script>
@@ -652,7 +649,7 @@
   <!-- PWA SW registration; bump query to bust cache if updating -->
   <script>
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js?v=streamdeck-brand-logos-v1').catch(()=>{});
+      navigator.serviceWorker.register('sw.js?v=logos-tmdb-and-infinite-fall-v3').catch(()=>{});
     }
   </script>
 </body>

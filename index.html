@@ -5,73 +5,91 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>StreamDeck</title>
   <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#0f1330">
+  <meta name="theme-color" content="#0e1230">
   <style>
     :root{
-      /* brighter neon palette */
-      --bg:#0f1330;
-      --card:#171d46;
-      --text:#f7fbff;
-      --muted:#c2cae5;
-      --chip:#0f1a58;
-      --accent1:#88d0ff;   /* sky */
-      --accent2:#ff7fd1;   /* magenta */
-      --accent3:#86ffb7;   /* neon green */
-      --accent4:#ffd166;   /* warm pop */
-      --radius:16px;
-      --shadow:0 14px 30px rgba(0,0,0,.35);
-      --glow:0 0 20px rgba(136,208,255,.35);
+      --bg:#0e1230; --card:#161d4b; --text:#f6fbff; --muted:#c0c9e6; --chip:#0f1a66;
+      --accent1:#88d0ff; --accent2:#ff7fd1; --accent3:#86ffb7; --accent4:#ffd166;
+      --radius:16px; --shadow:0 14px 30px rgba(0,0,0,.35); --glow:0 0 24px rgba(136,208,255,.35);
     }
     *{box-sizing:border-box}
     html,body{height:100%}
     body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);overflow-x:hidden}
     a{color:inherit}
 
-    .wrap{max-width:1100px;margin:0 auto;padding:22px;position:relative}
-    header{display:flex;align-items:center;gap:12px;margin-bottom:8px}
-    /* Remote power logo */
+    /* Falling posters background */
+    #falling-bg{position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.3}
+    .posterLink{position:absolute;top:-260px;width:140px;height:210px;border-radius:12px;box-shadow:0 14px 34px rgba(0,0,0,.55);overflow:hidden;animation:fall linear forwards;pointer-events:auto}
+    .posterLink img{width:100%;height:100%;object-fit:cover;display:block}
+    @keyframes fall{to{transform:translateY(150vh) rotate(var(--rot));opacity:.95}}
+
+    .wrap{max-width:1140px;margin:0 auto;padding:22px;position:relative;z-index:1}
+    header{display:flex;align-items:center;gap:14px;margin-bottom:6px}
+    /* Remote power logo (home) */
     .logo{width:52px;height:52px;border-radius:14px;background:radial-gradient(120px 120px at 30% 20%, rgba(255,255,255,.25), transparent 60%), linear-gradient(135deg,var(--accent1),var(--accent2));
           display:grid;place-items:center;cursor:pointer;user-select:none;box-shadow:var(--shadow),var(--glow)}
     .logo svg{width:28px;height:28px;filter:drop-shadow(0 0 6px rgba(255,255,255,.5))}
-    h1{margin:0;font-size:1.8rem;letter-spacing:.25px}
+
+    /* StreamDeck wood deck board text */
+    .brand{
+      font-size:2.2rem;font-weight:900;letter-spacing:.04em;line-height:1;
+      background:
+        linear-gradient(90deg, rgba(0,0,0,.15) 0 100%) center/100% 100%,
+        repeating-linear-gradient( to right,
+          #b88052 0 36px, #b17648 36px 38px, #b88052 38px 74px, #ad6f3e 74px 76px),
+        radial-gradient(120% 120% at 20% 10%, #e8b888 0%, #a96a3a 65%, #8b4f24 100%);
+      -webkit-background-clip:text;background-clip:text;color:transparent;
+      text-shadow:0 2px 0 rgba(0,0,0,.25), 0 4px 18px rgba(0,0,0,.25);
+      position:relative;
+    }
+    .brand:after{ /* faint board grooves across the text */
+      content:""; position:absolute; inset:0;
+      background:linear-gradient( to right, transparent 0, rgba(0,0,0,.18) 2px, transparent 4px) ;
+      background-size:38px 100%;
+      -webkit-mask:linear-gradient(#000 0 0); mask:linear-gradient(#000 0 0);
+      pointer-events:none;
+    }
 
     .tabs{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0}
-    .tabbtn{padding:10px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.14);background:#142066;color:var(--text);cursor:pointer;transition:transform .06s ease, box-shadow .2s ease}
+    .tabbtn{padding:10px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.16);background:#152172;color:var(--text);cursor:pointer;transition:transform .06s ease, box-shadow .2s ease}
     .tabbtn:hover{transform:translateY(-1px);box-shadow:var(--glow)}
     .tabbtn.active{background:linear-gradient(135deg,var(--accent1),var(--accent2));color:#08112e;border:none}
 
     .panel{display:none}
     .panel.active{display:block}
-    .card{background:var(--card);border-radius:var(--radius);border:1px solid rgba(255,255,255,.12);padding:16px;box-shadow:var(--shadow)}
+    .card{background:var(--card);border-radius:var(--radius);border:1px solid rgba(255,255,255,.14);padding:16px;box-shadow:var(--shadow)}
     .row{display:flex;gap:10px;flex-wrap:wrap}
-    input[type="search"],input[type="text"],select{flex:1;min-width:200px;padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,.18);background:#0d1a5a;color:#fff;box-shadow:inset 0 0 0 1px rgba(255,255,255,.04)}
+    input[type="search"],input[type="text"],select{flex:1;min-width:200px;padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,.2);background:#0e1a66;color:#fff;box-shadow:inset 0 0 0 1px rgba(255,255,255,.06)}
     button{padding:12px 16px;border-radius:12px;border:none;background:linear-gradient(135deg,var(--accent2),var(--accent1));color:#07112e;font-weight:800;cursor:pointer;box-shadow:var(--shadow),var(--glow);transition:transform .06s ease}
     button:hover{transform:translateY(-1px)}
     .results{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;margin-top:16px}
-    .tile{display:flex;gap:12px;background:#131a5a;border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:10px}
+    .tile{display:flex;gap:12px;background:#131a5a;border:1px solid rgba(255,255,255,.16);border-radius:14px;padding:10px}
     .tile img{width:100px;height:150px;border-radius:10px;object-fit:cover;background:#000}
     .meta{display:flex;flex-direction:column;gap:6px}
     .title{font-weight:800}
     .sub{color:var(--accent1);font-size:.95rem}
     .providers{display:flex;flex-wrap:wrap;gap:6px}
-    .chip{background:var(--chip);padding:4px 10px;border-radius:999px;border:1px solid rgba(255,255,255,.14);font-size:.85rem}
+    .chip{background:var(--chip);padding:4px 10px;border-radius:999px;border:1px solid rgba(255,255,255,.18);font-size:.85rem}
     .links{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
-    .linkbtn{font-size:.85rem;background:#0e1a66;color:var(--text);border:1px solid rgba(255,255,255,.18);padding:6px 10px;border-radius:999px;text-decoration:none;box-shadow:var(--glow)}
+    .linkbtn{font-size:.85rem;background:#0e1a66;color:var(--text);border:1px solid rgba(255,255,255,.22);padding:6px 10px;border-radius:999px;text-decoration:none;box-shadow:var(--glow)}
     .note{color:var(--muted);font-size:.9rem;margin-top:8px}
 
-    /* Brighter “hot” chips for genres */
+    /* Brighter genre “hot chips” */
     .chips{display:none;flex-wrap:wrap;gap:10px;margin-top:12px}
     .chips.show{display:flex}
     .gchip{background:linear-gradient(135deg,var(--accent3),var(--accent4));color:#06132c;border:none;padding:10px 14px;border-radius:999px;cursor:pointer;box-shadow:0 8px 20px rgba(255,209,102,.25), 0 0 18px rgba(134,255,183,.25);transition:transform .06s ease, filter .15s ease}
-    .gchip:hover{transform:translateY(-1px);filter:brightness(1.05)}
-    .gchip.active{outline:2px solid rgba(255,255,255,.35)}
+    .gchip:hover{transform:translateY(-1px);filter:brightness(1.06)}
+    .gchip.active{outline:2px solid rgba(255,255,255,.4)}
 
-    /* Actor section headings */
+    /* Actor sections */
     .section-title{margin:18px 0 6px;font-weight:900;color:var(--accent3);text-transform:uppercase;letter-spacing:.06em;font-size:.95rem}
     .small{font-size:.9rem;color:var(--muted)}
   </style>
 </head>
 <body>
+  <!-- Falling posters layer -->
+  <div id="falling-bg"></div>
+
   <div class="wrap">
     <header>
       <div id="homeLogo" class="logo" title="Home">
@@ -81,7 +99,7 @@
           <path d="M5.5 5.5a8 8 0 1 0 13 0"></path>
         </svg>
       </div>
-      <h1>StreamDeck</h1>
+      <div class="brand" aria-label="StreamDeck">StreamDeck</div>
     </header>
 
     <div class="tabs">
@@ -107,7 +125,7 @@
       </div>
     </section>
 
-    <!-- BY SERVICE (type + genre) -->
+    <!-- BY SERVICE -->
     <section id="service" class="panel">
       <div class="card">
         <div class="row" style="margin-bottom:10px">
@@ -120,9 +138,7 @@
             <option value="movie" selected>Movies</option>
             <option value="tv">TV</option>
           </select>
-          <select id="serviceGenre">
-            <option value="">Any genre</option>
-          </select>
+          <select id="serviceGenre"><option value="">Any genre</option></select>
           <input id="serviceQuery" type="search" placeholder="Optional: filter by title…">
           <button id="serviceGo">Search This Service</button>
         </div>
@@ -131,7 +147,7 @@
       </div>
     </section>
 
-    <!-- GENRES (hidden until Show) -->
+    <!-- GENRES -->
     <section id="genres" class="panel">
       <div class="card">
         <div class="row" style="margin-bottom:10px">
@@ -147,39 +163,68 @@
       </div>
     </section>
 
-    <!-- ACTORS (now with main vs appearance breakdowns) -->
+    <!-- ACTORS (main vs appearance) -->
     <section id="actors" class="panel">
       <div class="card">
         <div class="row" style="margin-bottom:10px">
           <input id="actorQuery" type="text" placeholder="Search for an actor…">
           <button id="actorGo">Find Actor</button>
         </div>
-
-        <div id="actorList" class="results" style="grid-template-columns:repeat(auto-fit,minmax(240px,1fr))"></div>
-
-        <div id="actorBreakdowns" style="margin-top:14px">
-          <!-- Filled dynamically: Movies (Main), Movies (Appearances), TV (Main), TV (Appearances) -->
-        </div>
+        <div id="actorList" class="results" style="grid-template-columns:repeat(auto-fit,minmax(260px,1fr))"></div>
+        <div id="actorBreakdowns" style="margin-top:14px"></div>
       </div>
     </section>
 
-    <div class="note">Provider buttons open the service’s own search for the title. Availability varies by region/account.</div>
+    <div class="note">Direct provider links aim to open the title on the service; when unavailable, they use a best-match first result on that provider’s site. Availability varies by region/account.</div>
   </div>
 
   <script>
-    /* ========= CONFIG / HELPERS ========= */
+    /* ====== CONFIG / HELPERS ====== */
     const TMDB_TOKEN = "eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiI2NGIzNmM0ZDNjODJlMmRiYzIyNjQzOTNhZjFlZTU2YyIsIm5iZiI6MTc1Njc2NTU2NS4zNzY5OTk5LCJzdWIiOiI2OGI2MWQ3ZDM1MGMzZWVlZTViNGZhZTQiLCJzY29wZXMiOlsiYXBpX3JlYWQiXSwidmVyc2lvbiI6MX0.hdDZK83KYkHjo_zpD0SHKH0K86IeLkwIiBpWVmOzgww";
     const TMDB_BASE = "https://api.themoviedb.org/3";
     const REGION = "US";
     const auth = { headers: { Authorization: `Bearer ${TMDB_TOKEN}` } };
 
-    const poster = (p, size="w185") => p ? `https://image.tmdb.org/t/p/${size}${p}` : "https://via.placeholder.com/100x150?text=No+Image";
+    const poster = (p, size="w342") => p ? `https://image.tmdb.org/t/p/${size}${p}` : "https://via.placeholder.com/140x210?text=No+Image";
+    const smallPoster = (p) => p ? `https://image.tmdb.org/t/p/w185${p}` : "https://via.placeholder.com/100x150?text=No+Image";
     const yearOf = (d) => d ? (d.split("-")[0]||"") : "";
     const safe = (s) => (s||"").replace(/</g,"&lt;").replace(/>/g,"&gt;");
     const norm = (name) => (name||"").replace(/\s*\+\s*/g,"+").replace(/ plus$/i,"+").replace(/\s+/g," ").trim();
 
-    function directSearchURL(providerName, title){
-      const n = norm(providerName), q = encodeURIComponent(title);
+    /* ====== FALLING POSTERS BACKGROUND (clickable) ====== */
+    async function spawnFallingPosters(){
+      try{
+        const bg = document.getElementById('falling-bg');
+        const res = await fetch(`${TMDB_BASE}/trending/movie/day`, auth);
+        const data = await res.json();
+        const items = (data.results||[]).filter(x=>x.poster_path).slice(0,24);
+        const columns = Math.min(18, Math.max(10, Math.floor(window.innerWidth/90)));
+        for(let i=0;i<columns;i++){
+          const item = items[i % items.length];
+          const a = document.createElement('a');
+          a.className = 'posterLink';
+          a.href = `https://www.themoviedb.org/movie/${item.id}`;
+          a.target = "_blank"; a.rel="noopener";
+          const imgEl = document.createElement('img');
+          imgEl.src = poster(item.poster_path,'w342');
+          a.appendChild(imgEl);
+          const left = Math.random()*100;
+          const dur = 12 + Math.random()*18;
+          const delay = Math.random()*-22;
+          const rot = (Math.random()*40-20)+'deg';
+          a.style.left = `calc(${left}vw - 70px)`;
+          a.style.animationDuration = `${dur}s`;
+          a.style.animationDelay = `${delay}s`;
+          a.style.setProperty('--rot', rot);
+          bg.appendChild(a);
+        }
+      }catch(e){ /* ignore bg errors */ }
+    }
+
+    /* ====== PROVIDER DIRECT LINKS (best-effort deep links) ====== */
+    function providerTitleURL(providerName, title, year){
+      const n = norm(providerName), q = encodeURIComponent(`${title} ${year||""}`.trim());
+      // Provider-specific search result pages that usually land directly on the title:
       if (n==="Netflix") return `https://www.netflix.com/search?q=${q}`;
       if (n==="Hulu") return `https://www.hulu.com/search?q=${q}`;
       if (n==="Disney+") return `https://www.disneyplus.com/search?q=${q}`;
@@ -188,8 +233,21 @@
       if (n==="Crunchyroll") return `https://www.crunchyroll.com/search?from=&q=${q}`;
       if (n==="Amazon Prime Video") return `https://www.amazon.com/s?k=${q}&i=instant-video`;
       if (n==="Apple TV+") return `https://tv.apple.com/us/search?term=${q}`;
-      if (n==="Max") return `https://www.google.com/search?q=site:max.com+${q}`;
-      return `https://www.google.com/search?q=${encodeURIComponent('"'+title+'" '+n+' watch')}`;
+      if (n==="Max") return `https://www.google.com/search?btnI=1&q=${encodeURIComponent(`site:max.com "${title}" ${year||""}`)}`;
+      // Fallback: jump to first result on provider’s site
+      return `https://www.google.com/search?btnI=1&q=${encodeURIComponent(`site:${providerDomainGuess(n)} "${title}" ${year||""}`)}`;
+    }
+    function providerDomainGuess(n){
+      if (n==="Netflix") return "netflix.com";
+      if (n==="Hulu") return "hulu.com";
+      if (n==="Disney+") return "disneyplus.com";
+      if (n==="Peacock") return "peacocktv.com";
+      if (n==="Paramount+") return "paramountplus.com";
+      if (n==="Crunchyroll") return "crunchyroll.com";
+      if (n==="Amazon Prime Video") return "amazon.com";
+      if (n==="Apple TV+") return "tv.apple.com";
+      if (n==="Max") return "max.com";
+      return (n.toLowerCase().replace(/\s+/g,'') + ".com");
     }
 
     async function getProviders(id, media){ // movie|tv
@@ -197,17 +255,19 @@
       return r.json();
     }
 
-    function providerButtons(title, provUS){
+    function providerButtons(title, year, provUS){
       const combined = [...(provUS.flatrate||[]), ...(provUS.buy||[]), ...(provUS.rent||[])];
       const seen = new Set();
       const btns = [];
       combined.forEach(p=>{
         const key = norm(p.provider_name).toLowerCase();
-        if(seen.has(key)) return;
-        seen.add(key);
-        btns.push(`<a class="linkbtn" target="_blank" rel="noopener" href="${directSearchURL(p.provider_name, title)}">${safe(p.provider_name)}</a>`);
+        if(seen.has(key)) return; seen.add(key);
+        const url = providerTitleURL(p.provider_name, title, year);
+        btns.push(`<a class="linkbtn" target="_blank" rel="noopener" href="${url}">Open on ${safe(p.provider_name)}</a>`);
       });
-      btns.push(`<a class="linkbtn" target="_blank" rel="noopener" href="https://www.google.com/search?q=${encodeURIComponent(`"${title}" watch`)}">All providers</a>`);
+      if (!btns.length) {
+        btns.push(`<a class="linkbtn" target="_blank" rel="noopener" href="https://www.google.com/search?q=${encodeURIComponent(`"${title}" ${year||""} watch`) }">Find streaming options</a>`);
+      }
       return btns.join("");
     }
 
@@ -218,22 +278,23 @@
       const us = prov?.results?.[REGION] || {};
       return `
         <div class="tile">
-          <img src="${poster(item.poster_path)}" alt="">
+          <img src="${smallPoster(item.poster_path)}" alt="">
           <div class="meta">
             <div class="title">${safe(title)}</div>
             <div class="sub">${media.toUpperCase()} ${y ? "· "+y : ""}</div>
             <div class="providers">${
-              (us.flatrate||[]).length ? us.flatrate.map(p=>`<span class="chip">${safe(p.provider_name)}</span>`).join("") : `<span class="chip">No subscription info</span>`
+              (us.flatrate||[]).length ? us.flatrate.map(p=>`<span class="chip">${safe(p.provider_name)}</span>`).join("")
+                                       : `<span class="chip">No subscription info</span>`
             }</div>
             <div class="links">
               ${us.link ? `<a class="linkbtn" target="_blank" rel="noopener" href="${us.link}">Watch options</a>` : ""}
-              ${providerButtons(title, us)}
+              ${providerButtons(title, y, us)}
             </div>
           </div>
         </div>`;
     }
 
-    /* ========= SEARCH ========= */
+    /* ====== BASIC SEARCH ====== */
     async function doSearch(){
       const q = document.getElementById("q").value.trim();
       if(!q) return;
@@ -252,7 +313,7 @@
       }
     }
 
-    /* ========= GENRES ========= */
+    /* ====== GENRES ====== */
     async function loadGenresIfNeeded(){
       if (window.__genresLoaded) return;
       const [gm, gt] = await Promise.all([
@@ -286,7 +347,7 @@
       }
     }
 
-    /* ========= BY SERVICE ========= */
+    /* ====== BY SERVICE (type + genre) ====== */
     async function loadProviderIds(){
       if (window.__provLoaded) return;
       const [pm, pt] = await Promise.all([
@@ -330,63 +391,42 @@
       }
     }
 
-    /* ========= ACTORS — breakdowns ========= */
-    function isMainRole(castItem){
-      // Heuristic: TMDB 'order' indicates billing. 0–5 ~ main cast.
-      return typeof castItem.order === "number" ? castItem.order <= 5 : false;
-    }
+    /* ====== ACTORS: main vs appearance ====== */
+    function isMainRole(c){ return typeof c.order === "number" ? c.order <= 5 : false; }
     function splitRoles(credits){
       const movies = (credits.cast||[]).filter(r => r.media_type === "movie");
       const tvs    = (credits.cast||[]).filter(r => r.media_type === "tv");
-      const out = {
-        movie:{ main:[], appearances:[] },
-        tv:{ main:[], appearances:[] }
-      };
+      const out = { movie:{main:[], appearances:[]}, tv:{main:[], appearances:[]} };
       movies.forEach(r => (isMainRole(r) ? out.movie.main : out.movie.appearances).push(r));
       tvs.forEach(r    => (isMainRole(r) ? out.tv.main    : out.tv.appearances   ).push(r));
-      // sort by popularity (desc)
       ["movie","tv"].forEach(k=>{
         out[k].main.sort((a,b)=>(b.popularity||0)-(a.popularity||0));
         out[k].appearances.sort((a,b)=>(b.popularity||0)-(a.popularity||0));
       });
       return out;
     }
-    function sectionGrid(items, media){
-      if(!items.length) return `<div class="small">No titles.</div>`;
-      const cards = items.slice(0,24).map(it=>({ ...it, media_type:media }));
-      return cards.map(it=>`<div>${resultTile(it, window.__provCache?.[`${media}-${it.id}`]||{})}</div>`).join("");
-    }
     async function renderActorBreakdowns(personId, personName){
       const mount = document.getElementById("actorBreakdowns");
       mount.innerHTML = `<div class='small'>Loading ${safe(personName)}’s roles…</div>`;
       const credits = await fetch(`${TMDB_BASE}/person/${personId}/combined_credits`, auth).then(r=>r.json());
       const split = splitRoles(credits);
-      // Preload provider data (simple cache to speed render)
-      window.__provCache = window.__provCache || {};
-      const allToFetch = [
-        ...split.movie.main, ...split.movie.appearances,
-        ...split.tv.main,    ...split.tv.appearances
-      ].slice(0,72); // cap for speed
-      await Promise.all(allToFetch.map(async it=>{
-        const key = `${it.media_type}-${it.id}`;
-        if(!window.__provCache[key]){
-          window.__provCache[key] = await getProviders(it.id, it.media_type);
-        }
+      // Prefetch provider info (light cache)
+      const all = [...split.movie.main, ...split.movie.appearances, ...split.tv.main, ...split.tv.appearances].slice(0,72);
+      const cache = {};
+      await Promise.all(all.map(async it=>{
+        cache[`${it.media_type}-${it.id}`] = await getProviders(it.id, it.media_type);
       }));
+      const grid = (items, media) => items.slice(0,24).map(it=>resultTile({...it, media_type:media}, cache[`${media}-${it.id}`]||{})).join("");
 
-      // Build 4 sections
       mount.innerHTML = `
         <div class="section-title">Movies — Main roles</div>
-        <div class="results">${sectionGrid(split.movie.main, "movie")}</div>
-
+        <div class="results">${ grid(split.movie.main, "movie") }</div>
         <div class="section-title">Movies — Appearances</div>
-        <div class="results">${sectionGrid(split.movie.appearances, "movie")}</div>
-
+        <div class="results">${ grid(split.movie.appearances, "movie") }</div>
         <div class="section-title">TV — Main roles</div>
-        <div class="results">${sectionGrid(split.tv.main, "tv")}</div>
-
+        <div class="results">${ grid(split.tv.main, "tv") }</div>
         <div class="section-title">TV — Appearances</div>
-        <div class="results">${sectionGrid(split.tv.appearances, "tv")}</div>
+        <div class="results">${ grid(split.tv.appearances, "tv") }</div>
       `;
     }
     async function searchActors(){
@@ -395,14 +435,13 @@
       const list = document.getElementById("actorList");
       const res = await fetch(`${TMDB_BASE}/search/person?query=${encodeURIComponent(q)}`, auth).then(r=>r.json());
       const people = res.results || [];
-      list.innerHTML = "";
-      document.getElementById("actorBreakdowns").innerHTML = "";
+      list.innerHTML = ""; document.getElementById("actorBreakdowns").innerHTML = "";
       if(!people.length){ list.innerHTML = "<div class='small'>No actors found.</div>"; return; }
       people.slice(0,12).forEach(p=>{
         const card = document.createElement("div");
         card.className = "tile";
         card.innerHTML = `
-          <img src="${poster(p.profile_path)}" alt="">
+          <img src="${smallPoster(p.profile_path)}" alt="">
           <div class="meta">
             <div class="title">${safe(p.name)}</div>
             <div class="sub">${(p.known_for_department||'').toUpperCase()}</div>
@@ -413,43 +452,40 @@
       });
     }
 
-    /* ========= TABS & HOME ========= */
+    /* ====== TABS / HOME ====== */
     function activateTab(id){
       document.querySelectorAll(".tabbtn").forEach(x=>x.classList.toggle("active", x.dataset.tab===id));
       document.querySelectorAll(".panel").forEach(p=>p.classList.toggle("active", p.id===id));
       window.scrollTo({top:0,behavior:"smooth"});
     }
-    document.querySelectorAll(".tabbtn").forEach(b=>{
-      b.addEventListener("click", ()=>{
-        activateTab(b.dataset.tab);
-        if(b.dataset.tab==="service"){ populateServiceGenres(); }
-      });
-    });
+    document.querySelectorAll(".tabbtn").forEach(b=> b.addEventListener("click", ()=>{
+      activateTab(b.dataset.tab);
+      if(b.dataset.tab==="service"){ populateServiceGenres(); }
+    }));
     document.getElementById("homeLogo").addEventListener("click", ()=>{
       activateTab("search");
-      document.getElementById("q").value="";
-      document.getElementById("searchResults").innerHTML="";
+      document.getElementById("q").value=""; document.getElementById("searchResults").innerHTML="";
+      window.scrollTo({top:0,behavior:"smooth"});
     });
 
-    /* ========= EVENT WIRING ========= */
+    /* ====== EVENTS ====== */
     document.getElementById("go").addEventListener("click", doSearch);
     document.getElementById("q").addEventListener("keydown", e=>{ if(e.key==="Enter") doSearch(); });
-
+    document.getElementById("showGenresBtn").addEventListener("click", async ()=>{ await loadGenresIfNeeded(); renderGenreChips(); });
+    document.getElementById("genreType").addEventListener("change", ()=>{ if(window.__genresLoaded && document.getElementById("genreChips").classList.contains("show")) renderGenreChips(); });
     document.getElementById("serviceType").addEventListener("change", populateServiceGenres);
     document.getElementById("serviceGo").addEventListener("click", doServiceSearch);
     document.getElementById("serviceQuery").addEventListener("keydown", e=>{ if(e.key==="Enter") doServiceSearch(); });
-
-    document.getElementById("showGenresBtn").addEventListener("click", async ()=>{ await loadGenresIfNeeded(); renderGenreChips(); });
-    document.getElementById("genreType").addEventListener("change", ()=>{ if(window.__genresLoaded && document.getElementById("genreChips").classList.contains("show")) renderGenreChips(); });
-
-    // Pre-seed service genres
-    populateServiceGenres();
+    
+    /* ====== INIT ====== */
+    spawnFallingPosters();     // clickable background posters
+    populateServiceGenres();   // pre-seed genres in By Service tab
   </script>
 
   <!-- PWA SW registration; bump query to bust cache if updating -->
   <script>
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js?v=streamdeck-actors-main-vs-appear-1').catch(()=>{});
+      navigator.serviceWorker.register('sw.js?v=streamdeck-bg-covers-deeplinks-1').catch(()=>{});
     }
   </script>
 </body>

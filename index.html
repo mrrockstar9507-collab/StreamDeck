@@ -19,7 +19,7 @@
 
     /* Falling posters background (clickable) */
     #falling-bg{position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.28}
-    .posterLink{position:absolute;top:-260px;width:140px;height:210px;border-radius:12px;box-shadow:0 14px 34px rgba(0,0,0,.55);overflow:hidden;animation:fall linear forwards;pointer-events:auto}
+    .posterLink{position:absolute;top:-260px;width:140px;height:210px;border-radius:12px;box-shadow:0 14px 34px rgba(0,0,0,.55);overflow:hidden;animation:fall linear forwards;pointer-events:auto;cursor:pointer}
     .posterLink img{width:100%;height:100%;object-fit:cover;display:block}
     @keyframes fall{to{transform:translateY(150vh) rotate(var(--rot));opacity:.95}}
 
@@ -119,7 +119,7 @@
           <button id="go">Search</button>
         </div>
 
-        <!-- NEW: Randomizer -->
+        <!-- Randomizer (unchanged from your last good version) -->
         <div class="row" style="margin:6px 0 0">
           <select id="randService">
             <option>Netflix</option><option>Hulu</option><option>Disney+</option><option>Max</option>
@@ -153,7 +153,7 @@
             <option value="movie" selected>Movies</option>
             <option value="tv">TV</option>
           </select>
-          <select id="serviceGenre"><option value="">Any genre</option></select>
+          <select id="serviceGenre"><!-- filled dynamically --></select>
           <input id="serviceQuery" type="search" placeholder="Optional: filter by title…">
           <button id="serviceGo">Search This Service</button>
         </div>
@@ -205,20 +205,23 @@
     const safe = (s) => (s||"").replace(/</g,"&lt;").replace(/>/g,"&gt;");
     const norm = (name) => (name||"").replace(/\s*\+\s*/g,"+").replace(/ plus$/i,"+").replace(/\s+/g," ").trim();
 
-    /* ====== FALLING POSTERS (clickable) ====== */
+    /* ====== FALLING POSTERS ====== */
+    let postersSpawned = false;
     async function spawnFallingPosters(){
       try{
         const bg = document.getElementById('falling-bg');
+        bg.innerHTML = ""; // reset before spawning
         const res = await fetch(`${TMDB_BASE}/trending/movie/day`, auth);
         const data = await res.json();
         const items = (data.results||[]).filter(x=>x.poster_path).slice(0,24);
         const columns = Math.min(18, Math.max(10, Math.floor(window.innerWidth/90)));
         for(let i=0;i<columns;i++){
           const item = items[i % items.length];
-          const a = document.createElement('a');
+          const a = document.createElement('div');
           a.className = 'posterLink';
-          a.href = `https://www.themoviedb.org/movie/${item.id}`;
-          a.target = "_blank"; a.rel="noopener";
+          a.dataset.id = String(item.id);
+          a.dataset.title = item.title || item.name || "";
+          a.dataset.year = yearOf(item.release_date || item.first_air_date || "");
           const imgEl = document.createElement('img');
           imgEl.src = poster(item.poster_path,'w342');
           a.appendChild(imgEl);
@@ -230,9 +233,17 @@
           a.style.animationDuration = `${dur}s`;
           a.style.animationDelay = `${delay}s`;
           a.style.setProperty('--rot', rot);
+          a.addEventListener('click', handlePosterClick);
           bg.appendChild(a);
         }
+        postersSpawned = true;
       }catch(e){ /* ignore */ }
+    }
+    function ensureFallingPosters(){
+      const bg = document.getElementById('falling-bg');
+      if (!postersSpawned || !bg || bg.childElementCount === 0) {
+        spawnFallingPosters();
+      }
     }
 
     /* ====== PROVIDER DIRECT LINKS ====== */
@@ -323,6 +334,29 @@
       }
     }
 
+    /* ====== POSTER CLICK → behave like in-app search ====== */
+    async function handlePosterClick(e){
+      const el = e.currentTarget;
+      const id = el.dataset.id;
+      const title = el.dataset.title || "";
+      const year = el.dataset.year || "";
+      // Switch to Search tab, prefill + set type Movie
+      activateTab("search");
+      document.getElementById("q").value = title;
+      document.getElementById("searchType").value = "movie";
+
+      // Prefer exact title by ID; if available, render that first
+      const out = document.getElementById("searchResults");
+      out.innerHTML = "<div class='small'>Loading…</div>";
+      try{
+        const details = await fetch(`${TMDB_BASE}/movie/${id}`, auth).then(r=>r.json());
+        const prov = await getProviders(id, "movie");
+        out.innerHTML = resultTile({...details, media_type:"movie"}, prov);
+      }catch(_){}
+      // Also run normal search for surrounding matches
+      doSearch();
+    }
+
     /* ====== GENRES (always visible) ====== */
     async function loadGenres(){
       const [gm, gt] = await Promise.all([
@@ -331,7 +365,8 @@
       ]);
       window.__genres = { movie:(gm.genres||[]), tv:(gt.genres||[]) };
       renderGenreChips();
-      seedRandomGenreSelects(); // also seed for Randomizer & By Service
+      seedRandomGenreSelects(); // for Randomizer & Service tab
+      populateServiceGenres();  // INITIAL fill for Service tab
     }
     function renderGenreChips(){
       const type = document.getElementById("genreType").value;
@@ -361,9 +396,10 @@
       }
     }
 
-    /* ====== BY SERVICE (existing) ====== */
+    /* ====== BY SERVICE — FIXED GENRE SELECTION ====== */
+    let provLoaded = false;
     async function loadProviderIds(){
-      if (window.__provLoaded) return;
+      if (provLoaded) return;
       const [pm, pt] = await Promise.all([
         fetch(`${TMDB_BASE}/watch/providers/movie?watch_region=${REGION}`, auth).then(r=>r.json()),
         fetch(`${TMDB_BASE}/watch/providers/tv?watch_region=${REGION}`, auth).then(r=>r.json())
@@ -371,22 +407,29 @@
       const mk = (arr)=>{ const m={}; (arr||[]).forEach(p=> m[norm(p.provider_name)] = p.provider_id); return m; };
       window.__provMovie = mk(pm.results||[]);
       window.__provTV = mk(pt.results||[]);
-      window.__provLoaded = true;
+      provLoaded = true;
     }
-    async function populateServiceGenres(){
-      if(!window.__genres){ await loadGenres(); }
-      const type = document.getElementById("serviceType").value;
+    function populateServiceGenres(){
+      // preserve current selection if present
       const sel = document.getElementById("serviceGenre");
-      sel.innerHTML = `<option value="">Any genre</option>`;
+      const prev = sel.value || "";
+      const type = document.getElementById("serviceType").value;
+      sel.innerHTML = "";
+      const optAny = document.createElement("option");
+      optAny.value = ""; optAny.textContent = "Any genre";
+      sel.appendChild(optAny);
       (window.__genres?.[type]||[]).forEach(g=>{
         const o = document.createElement("option"); o.value=g.id; o.textContent=g.name; sel.appendChild(o);
       });
+      // restore previous if still valid
+      if ([...sel.options].some(o=>o.value===prev)) sel.value = prev;
     }
     async function doServiceSearch(){
-      await loadProviderIds(); await populateServiceGenres();
+      await loadProviderIds();
+      // DO NOT repopulate genres here (bug fix) — use the user's current selection
       const serviceName = norm(document.getElementById("servicePicker").value);
       const type = document.getElementById("serviceType").value;
-      const genreId = document.getElementById("serviceGenre").value;
+      const genreId = document.getElementById("serviceGenre").value; // respected now
       const keyword = document.getElementById("serviceQuery").value.trim();
       const out = document.getElementById("serviceResults");
       out.innerHTML = `<div class='small'>Searching ${safe(serviceName)} ${type.toUpperCase()}…</div>`;
@@ -394,7 +437,7 @@
       if(!provId){ out.innerHTML = `<div class='small'>Provider not supported for ${type.toUpperCase()} in ${REGION}.</div>`; return; }
       let url = `${TMDB_BASE}/discover/${type}?watch_region=${REGION}&with_watch_providers=${provId}&sort_by=popularity.desc`;
       if (genreId) url += `&with_genres=${genreId}`;
-      if (keyword) url += `&with_keywords=${encodeURIComponent(keyword)}`;
+      // (Note: TMDB discover "with_keywords" expects IDs; we skip free-text keywords for accuracy)
       const data = await fetch(url, auth).then(r=>r.json()).catch(()=>({results:[]}));
       out.innerHTML = "";
       const items = data.results||[];
@@ -404,10 +447,10 @@
         out.insertAdjacentHTML("beforeend", resultTile({...it, media_type:type}, prov));
       }
     }
+    document.getElementById("serviceType").addEventListener("change", populateServiceGenres);
 
-    /* ====== RANDOMIZER (new) ====== */
+    /* ====== RANDOMIZER (unchanged logic) ====== */
     function seedRandomGenreSelects(){
-      // For Randomizer
       const sel = document.getElementById("randGenre");
       const type = document.getElementById("randType").value; // movie|tv
       sel.innerHTML = `<option value="">Any genre</option>`;
@@ -416,43 +459,31 @@
       });
     }
     document.getElementById("randType").addEventListener("change", seedRandomGenreSelects);
-
     async function randomizePick(){
       await loadProviderIds();
       if(!window.__genres) await loadGenres();
-
       const serviceName = norm(document.getElementById("randService").value);
-      const type = document.getElementById("randType").value; // movie|tv
+      const type = document.getElementById("randType").value;
       const genreId = document.getElementById("randGenre").value;
       const out = document.getElementById("randomResult");
       out.innerHTML = "<div class='small'>Rolling the dice…</div>";
-
       const provId = (type==="movie"?window.__provMovie:window.__provTV)[serviceName];
       if(!provId){ out.innerHTML = `<div class='small'>That provider isn’t available for ${type.toUpperCase()} in ${REGION}.</div>`; return; }
-
-      // 1) First discover to get total_pages (cap to 25 for speed)
       let base = `${TMDB_BASE}/discover/${type}?watch_region=${REGION}&with_watch_providers=${provId}&sort_by=popularity.desc`;
       if (genreId) base += `&with_genres=${genreId}`;
       const first = await fetch(base + `&page=1`, auth).then(r=>r.json()).catch(()=>null);
       const totalPages = Math.max(1, Math.min((first?.total_pages||1), 25));
       const randPage = 1 + Math.floor(Math.random()*totalPages);
-
-      // 2) Fetch that random page, pick random item
       const pageData = randPage===1 ? first : await fetch(base + `&page=${randPage}`, auth).then(r=>r.json()).catch(()=>null);
       const list = pageData?.results || [];
       if(!list.length){ out.innerHTML = `<div class='small'>Couldn’t find anything — try different filters.</div>`; return; }
       const pick = list[Math.floor(Math.random()*list.length)];
-
-      // 3) Render the picked title
       const prov = await getProviders(pick.id, type);
-      out.innerHTML = ""; // clear previous
-      out.insertAdjacentHTML("beforeend", resultTile({...pick, media_type:type}, prov));
-
-      // Scroll into view
+      out.innerHTML = resultTile({...pick, media_type:type}, prov);
       out.scrollIntoView({behavior:"smooth", block:"start"});
     }
 
-    /* ====== ACTORS (kept from previous fix) ====== */
+    /* ====== ACTORS (kept) ====== */
     function isMainRole(c){ return typeof c.order === "number" ? c.order <= 5 : false; }
     function splitRoles(credits){
       const movies = (credits.cast||[]).filter(r => r.media_type === "movie");
@@ -525,16 +556,13 @@
     function activateTab(id){
       document.querySelectorAll(".tabbtn").forEach(x=>x.classList.toggle("active", x.dataset.tab===id));
       document.querySelectorAll(".panel").forEach(p=>p.classList.toggle("active", p.id===id));
+      if(id==="search"){ ensureFallingPosters(); } // keep the raining covers alive
       window.scrollTo({top:0,behavior:"smooth"});
     }
-    document.querySelectorAll(".tabbtn").forEach(b=> b.addEventListener("click", ()=>{
-      activateTab(b.dataset.tab);
-      if(b.dataset.tab==="service"){ populateServiceGenres(); }
-    }));
+    document.querySelectorAll(".tabbtn").forEach(b=> b.addEventListener("click", ()=>{ activateTab(b.dataset.tab); if(b.dataset.tab==="service"){ /* no repopulate here; we preserve selection */ } }));
     document.getElementById("homeLogo").addEventListener("click", ()=>{
       activateTab("search");
       document.getElementById("q").value=""; document.getElementById("searchResults").innerHTML=""; document.getElementById("randomResult").innerHTML="";
-      window.scrollTo({top:0,behavior:"smooth"});
     });
 
     /* ====== EVENTS ====== */
@@ -543,34 +571,28 @@
 
     document.getElementById("genreType").addEventListener("change", renderGenreChips);
 
-    document.getElementById("serviceType").addEventListener("change", populateServiceGenres);
     document.getElementById("serviceGo").addEventListener("click", doServiceSearch);
+    document.getElementById("serviceType").addEventListener("change", populateServiceGenres);
     document.getElementById("serviceQuery").addEventListener("keydown", e=>{ if(e.key==="Enter") doServiceSearch(); });
 
     // Actor search hooks
     document.getElementById("actorGo").addEventListener("click", ()=>runActorSearch(document.getElementById("actorQuery").value.trim()));
     document.getElementById("actorQuery").addEventListener("keydown", e=>{ if(e.key==="Enter") runActorSearch(e.target.value.trim()); });
-    let actorDebounce;
-    document.getElementById("actorQuery").addEventListener("input", e=>{
-      clearTimeout(actorDebounce);
-      const v = e.target.value.trim();
-      actorDebounce = setTimeout(()=>{ if(v.length>=2) runActorSearch(v); }, 400);
-    });
 
     // Randomizer
     document.getElementById("randGo").addEventListener("click", randomizePick);
     document.getElementById("randType").addEventListener("change", seedRandomGenreSelects);
 
     /* ====== INIT ====== */
-    spawnFallingPosters();
-    loadGenres();            // also seeds randomizer & service genre selects
+    spawnFallingPosters(); // initial
+    loadGenres();          // seeds genres (genres tab, randomizer, and first-time service list)
     (async()=>{ await loadProviderIds(); })(); // warm provider maps
   </script>
 
   <!-- PWA SW registration; bump query to bust cache if updating -->
   <script>
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js?v=streamdeck-randomizer-v1').catch(()=>{});
+      navigator.serviceWorker.register('sw.js?v=streamdeck-fixes-genre-home-posters-1').catch(()=>{});
     }
   </script>
 </body>

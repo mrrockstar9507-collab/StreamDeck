@@ -4,605 +4,381 @@
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>StreamDeck</title>
-  <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#0e1230">
+  <meta name="theme-color" content="#151824">
+  <meta name="description" content="StreamDeck — quick actions, macros, and controls">
   <style>
     :root{
-      --bg:#0e1230; --card:#161d4b; --text:#f6fbff; --muted:#c0c9e6; --chip:#0f1a66;
-      --accent1:#88d0ff; --accent2:#ff7fd1; --accent3:#86ffb7; --accent4:#ffd166;
-      --radius:16px; --shadow:0 14px 30px rgba(0,0,0,.35); --glow:0 0 24px rgba(136,208,255,.35);
+      /* Neutral palette */
+      --bg:#151824; --bg-veil:rgba(12,14,22,.55);
+      --card:#1c2132; --text:#f5f7fb; --muted:#b9c1d8; --chip:#252b3e;
+      --accent1:#7fb3ff; --accent2:#ffd28a; --accent3:#93f3b6; --accent4:#ff9fd9;
+      --radius:16px; --shadow:0 14px 30px rgba(0,0,0,.35);
     }
     *{box-sizing:border-box}
     html,body{height:100%}
-    body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--text)}
+    body{
+      margin:0;
+      font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+      background: var(--bg);
+      color:var(--text);
+      overflow-x:hidden;
+    }
     a{color:inherit;text-decoration:none}
+    button{font:inherit;color:inherit}
 
-    .wrap{max-width:1140px;margin:0 auto;padding:22px}
-    header{display:flex;align-items:center;gap:14px;margin-bottom:6px}
+    /* ===== Background Mosaic (clickable) ===== */
+    .bg-wrap{
+      position:fixed; inset:0; overflow:hidden; z-index:0;
+      background:linear-gradient(180deg,#0f1220 0%, #151824 60%, #1a1f2e 100%);
+    }
+    .mosaic{
+      position:absolute; inset:-10% -10%; display:grid;
+      /* Responsive tile counts */
+      grid-template-columns: repeat(12, minmax(120px, 1fr));
+      grid-auto-rows: 180px;
+      gap:10px; transform:translate3d(0,0,0);
+      animation: slowPan 40s linear infinite alternate;
+    }
+    @media (max-width:1200px){ .mosaic{grid-template-columns: repeat(10, minmax(120px,1fr))} }
+    @media (max-width:900px){ .mosaic{grid-template-columns: repeat(8, minmax(120px,1fr)); grid-auto-rows:150px} }
+    @media (max-width:640px){ .mosaic{grid-template-columns: repeat(6, minmax(100px,1fr)); grid-auto-rows:130px} }
 
-    /* Home button (remote power icon) */
-    .logo{width:52px;height:52px;border-radius:14px;background:radial-gradient(120px 120px at 30% 20%, rgba(255,255,255,.25), transparent 60%), linear-gradient(135deg,var(--accent1),var(--accent2));
-          display:grid;place-items:center;cursor:pointer;user-select:none;box-shadow:var(--shadow),var(--glow)}
-    .logo svg{width:28px;height:28px;filter:drop-shadow(0 0 6px rgba(255,255,255,.5))}
+    @keyframes slowPan{
+      0%{ transform:translate3d(-2%, -2%, 0) scale(1.02); }
+      100%{ transform:translate3d(2%, 2%, 0) scale(1.02); }
+    }
 
-    /* StreamDeck wood deck board text */
+    .tile{
+      position:relative; border-radius:14px; overflow:hidden;
+      border:1px solid rgba(255,255,255,.06);
+      transition: transform .2s ease, filter .2s ease, border-color .2s ease;
+    }
+    .tile:focus-visible{ outline:2px solid rgba(255,255,255,.35); outline-offset:2px }
+    .tile:hover{ transform:translateY(-2px); filter:brightness(1.04); border-color:rgba(255,255,255,.15) }
+    .tile img{
+      width:100%; height:100%; object-fit:cover; display:block;
+      transform:scale(1.02); transition: transform .8s ease;
+    }
+    .tile:hover img{ transform:scale(1.05) }
+    .tile .label{
+      position:absolute; left:8px; bottom:8px; right:8px;
+      padding:6px 8px; font-size:.8rem; color:#eaf1ff;
+      background:linear-gradient(180deg, rgba(0,0,0,.0), rgba(0,0,0,.65));
+      border-radius:10px;
+      text-shadow: 0 1px 2px rgba(0,0,0,.7);
+    }
+
+    /* Veil for readability (doesn't block clicks) */
+    .veil{
+      position:fixed; inset:0; z-index:1; background:var(--bg-veil);
+      pointer-events:none; /* clicks pass through to tiles */
+    }
+
+    /* Foreground layout */
+    .wrap{position:relative; z-index:2; max-width:1140px; margin:0 auto; padding:22px}
+    header{display:flex;align-items:center;gap:14px;margin-bottom:14px}
+    .spacer{flex:1}
+
+    /* Fun Logo (no glow) */
+    .logo{
+      width:56px;height:56px;border-radius:14px;
+      background:linear-gradient(180deg,#242a3f, #1f2538);
+      display:grid;place-items:center;cursor:pointer;user-select:none;
+      border:1px solid rgba(255,255,255,.08);
+      box-shadow:0 6px 16px rgba(0,0,0,.35);
+      transition:transform .15s ease, filter .2s ease, border-color .2s ease;
+    }
+    .logo:hover{ filter:brightness(1.03); border-color:rgba(255,255,255,.16) }
+    .logo:active{ transform:scale(.97) }
+    .logo svg{ width:30px; height:30px; }
+
+    /* Brand text — friendlier vibe */
     .brand{
-      font-size:2.2rem;font-weight:900;letter-spacing:.04em;line-height:1;
-      background:
-        linear-gradient(90deg, rgba(0,0,0,.15) 0 100%) center/100% 100%,
-        repeating-linear-gradient( to right,
-          #b88052 0 36px, #b17648 36px 38px, #b88052 38px 74px, #ad6f3e 74px 76px),
-        radial-gradient(120% 120% at 20% 10%, #e8b888 0%, #a96a3a 65%, #8b4f24 100%);
-      -webkit-background-clip:text;background-clip:text;color:transparent;
-      text-shadow:0 2px 0 rgba(0,0,0,.25), 0 4px 18px rgba(0,0,0,.25);
-      position:relative;
-    }
-    .brand:after{
-      content:""; position:absolute; inset:0;
-      background:linear-gradient( to right, transparent 0, rgba(0,0,0,.18) 2px, transparent 4px) ;
-      background-size:38px 100%;
-      -webkit-mask:linear-gradient(#000 0 0); mask:linear-gradient(#000 0 0);
-      pointer-events:none;
+      font-size:2.15rem;font-weight:900;letter-spacing:.02em;line-height:1.1;
+      background: linear-gradient(90deg,#f4f7ff 0%, #cfe0ff 50%, #f4f7ff 100%);
+      -webkit-background-clip:text; background-clip:text; color:transparent;
+      text-shadow: 0 1px 0 rgba(0,0,0,.25);
+      white-space:nowrap
     }
 
-    .tabs{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0}
-    .tabbtn{padding:10px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.16);background:#152172;color:var(--text);cursor:pointer;transition:transform .06s ease, box-shadow .2s ease}
-    .tabbtn:hover{transform:translateY(-1px);box-shadow:var(--glow)}
-    .tabbtn.active{background:linear-gradient(135deg,var(--accent1),var(--accent2));color:#08112e;border:none}
-
-    .panel{display:none}
-    .panel.active{display:block}
-    .card{background:var(--card);border-radius:var(--radius);border:1px solid rgba(255,255,255,.14);padding:16px;box-shadow:var(--shadow)}
-    .row{display:flex;gap:10px;flex-wrap:wrap}
-    input[type="search"],input[type="text"],select{flex:1;min-width:200px;padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,.2);background:#0e1a66;color:#fff;box-shadow:inset 0 0 0 1px rgba(255,255,255,.06)}
-    button{padding:12px 16px;border-radius:12px;border:none;background:linear-gradient(135deg,var(--accent2),var(--accent1));color:#07112e;font-weight:800;cursor:pointer;box-shadow:var(--shadow),var(--glow);transition:transform .06s ease}
-    button:hover{transform:translateY(-1px)}
-    .small{font-size:.9rem;color:var(--muted)}
-    .note{color:var(--muted);font-size:.9rem;margin-top:8px}
-
-    .results{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;margin-top:16px}
-    .tile{display:flex;gap:12px;background:#131a5a;border:1px solid rgba(255,255,255,.16);border-radius:14px;padding:10px}
-    .tile img{width:100px;height:150px;border-radius:10px;object-fit:cover;background:#000}
-    .meta{display:flex;flex-direction:column;gap:6px}
-    .title{font-weight:800}
-    .sub{color:var(--accent1);font-size:.95rem}
-    .providers{display:flex;flex-wrap:wrap;gap:6px}
-    .chip{background:#0f1a66;padding:4px 10px;border-radius:999px;border:1px solid rgba(255,255,255,.18);font-size:.85rem}
-    .links{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
-    .linkbtn{font-size:.85rem;background:#0e1a66;color:var(--text);border:1px solid rgba(255,255,255,.22);padding:6px 10px;border-radius:999px;text-decoration:none;box-shadow:var(--glow)}
-
-    /* Provider brand logos (crisp, fitted) */
-    .logoLinks{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
-    .logoLink{
-      display:inline-flex;align-items:center;justify-content:center;
-      width:40px;height:40px;border-radius:10px;background:#0e1a66;
-      border:1px solid rgba(255,255,255,.20);
-      box-shadow:0 0 14px rgba(136,208,255,.18);
-      text-decoration:none;overflow:hidden;transition:transform .06s ease, box-shadow .2s ease
+    /* Status chip (no glow) */
+    .chip{
+      background:#23283a; border:1px solid rgba(255,255,255,.08);
+      padding:8px 12px;border-radius:999px;font-size:.9rem;color:var(--muted);
+      display:flex;align-items:center;gap:8px
     }
-    .logoLink:hover{transform:translateY(-1px);box-shadow:0 0 18px rgba(136,208,255,.30)}
-    .logoImg{
-      max-width:76%; max-height:76%;
-      width:auto; height:auto;
-      object-fit:contain; display:block; image-rendering:auto; filter:none;
+    .status-dot{width:8px;height:8px;border-radius:50%;background:var(--accent3);box-shadow:none}
+
+    /* Card grid (no glow buttons) */
+    .grid{
+      display:grid; grid-template-columns:repeat(12,1fr); gap:16px; margin-top:18px
+    }
+    @media (max-width:980px){ .grid{grid-template-columns:repeat(8,1fr)} }
+    @media (max-width:640px){ .grid{grid-template-columns:repeat(4,1fr)} }
+
+    .card{
+      grid-column:span 6;
+      background:linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,.01)),
+                 linear-gradient(0deg, rgba(255,255,255,.02), rgba(255,255,255,.02)) var(--card);
+      border:1px solid rgba(255,255,255,.08);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+      padding:16px; display:flex; flex-direction:column; gap:12px;
+      transition:transform .15s ease, box-shadow .2s ease, border-color .2s ease;
+      position:relative; overflow:hidden;
+    }
+    .card:hover{transform:translateY(-2px); box-shadow:0 18px 36px rgba(0,0,0,.45)}
+    .card h3{margin:0;font-size:1.05rem;letter-spacing:.02em}
+    .card p{margin:0;color:var(--muted);font-size:.95rem}
+    .pill{
+      align-self:flex-start;
+      padding:6px 10px;border-radius:999px;font-size:.8rem;
+      background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.08)
+    }
+    .cta{
+      margin-top:auto; display:flex; gap:10px; align-items:center;
+      background:linear-gradient(135deg,#e7ecf8,#cfd8ec);
+      color:#0a1030; font-weight:700; border:none; border-radius:12px;
+      padding:10px 12px; cursor:pointer; box-shadow:none;
+      transition:filter .15s ease, transform .15s ease;
+    }
+    .cta:hover{filter:brightness(1.03)}
+    .cta:active{transform:translateY(1px)}
+    .cta.secondary{
+      background:linear-gradient(135deg,#ffe3a6,#f8d3ef);
+      color:#10152a;
     }
 
-    /* Genre chips (always visible) */
-    .chips{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
-    .gchip{background:linear-gradient(135deg,var(--accent3),var(--accent4));color:#06132c;border:none;padding:10px 14px;border-radius:999px;cursor:pointer;box-shadow:0 8px 20px rgba(255,209,102,.25), 0 0 18px rgba(134,255,183,.25);transition:transform .06s ease, filter .15s ease}
-    .gchip:hover{transform:translateY(-1px);filter:brightness(1.06)}
-    .gchip.active{outline:2px solid rgba(255,255,255,.4)}
+    footer{opacity:.85;margin:28px 0 10px;color:var(--muted);font-size:.9rem}
+    .kbd{
+      font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,Liberation Mono,monospace;
+      background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12);
+      padding:.15rem .4rem; border-radius:.4rem
+    }
 
-    .section-title{margin:18px 0 6px;font-weight:900;color:var(--accent3);text-transform:uppercase;letter-spacing:.06em;font-size:.95rem}
+    /* Spans */
+    .span-4{grid-column:span 4}
+    .span-6{grid-column:span 6}
+    .span-8{grid-column:span 8}
+    .span-12{grid-column:span 12}
   </style>
 </head>
 <body>
+  <!-- CLICKABLE MOVIE MOSAIC BACKGROUND -->
+  <div class="bg-wrap" aria-hidden="false">
+    <div class="mosaic" id="mosaic" aria-label="Popular movies background grid"></div>
+  </div>
+  <div class="veil" aria-hidden="true"></div>
+
+  <!-- FOREGROUND UI -->
   <div class="wrap">
-    <header>
-      <div id="homeLogo" class="logo" title="Home">
-        <svg viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M12 2 v8"></path>
-          <path d="M5.5 5.5a 8 8 0 1 0 13 0"></path>
+    <header role="banner" aria-label="App header">
+      <button class="logo" id="homeBtn" title="Home" tabindex="0" aria-label="Home">
+        <!-- Fun clapperboard + reel logo -->
+        <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <!-- Reel -->
+          <circle cx="44" cy="40" r="12" stroke="#cfd8ec" stroke-width="3"/>
+          <circle cx="44" cy="40" r="3" fill="#cfd8ec"/>
+          <circle cx="44" cy="32" r="2" fill="#cfd8ec"/>
+          <circle cx="52" cy="40" r="2" fill="#cfd8ec"/>
+          <circle cx="44" cy="48" r="2" fill="#cfd8ec"/>
+          <circle cx="36" cy="40" r="2" fill="#cfd8ec"/>
+          <!-- Clapperboard -->
+          <path d="M8 22h30a2 2 0 0 1 2 2v16H8V22z" fill="#2b3148" stroke="#cfd8ec" stroke-width="2"/>
+          <path d="M8 18h30l-4 8H4l4-8z" fill="#39405c" stroke="#cfd8ec" stroke-width="2"/>
+          <!-- Stripes -->
+          <path d="M10 18l6 8M20 18l6 8M30 18l6 8" stroke="#cfd8ec" stroke-width="2"/>
         </svg>
+      </button>
+      <div class="brand" aria-label="StreamDeck brand">StreamDeck</div>
+      <div class="spacer"></div>
+      <div class="chip" aria-live="polite">
+        <span class="status-dot" aria-hidden="true"></span>
+        Connected
       </div>
-      <div class="brand" aria-label="StreamDeck">StreamDeck</div>
     </header>
 
-    <div class="tabs">
-      <button class="tabbtn active" data-tab="search">Search</button>
-      <button class="tabbtn" data-tab="service">By Service</button>
-      <button class="tabbtn" data-tab="genres">Browse by Genre</button>
-      <button class="tabbtn" data-tab="actors">Browse by Actor</button>
-    </div>
-
-    <!-- SEARCH (Home) -->
-    <section id="search" class="panel active">
-      <div class="card">
-        <div class="row" style="margin-bottom:10px">
-          <input id="q" type="search" placeholder="Search movies or TV shows…">
-          <select id="searchType">
-            <option value="multi" selected>All</option>
-            <option value="movie">Movies</option>
-            <option value="tv">TV</option>
-          </select>
-          <button id="go">Search</button>
+    <main class="grid" role="main">
+      <section class="card span-6" aria-labelledby="scenesTitle">
+        <span class="pill">Scenes</span>
+        <h3 id="scenesTitle">One-tap streaming scenes</h3>
+        <p>Switch layouts, toggle overlays, and animate stingers without touching your mouse.</p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button class="cta" data-action="scene:Intro">Load Intro</button>
+          <button class="cta secondary" data-action="scene:Main">Go Live</button>
         </div>
+      </section>
 
-        <!-- Randomizer -->
-        <div class="row" style="margin:6px 0 0">
-          <select id="randService">
-            <option>Netflix</option><option>Hulu</option><option>Disney+</option><option>Max</option>
-            <option>Amazon Prime Video</option><option>Apple TV+</option><option>Peacock</option>
-            <option>Paramount+</option><option>Crunchyroll</option>
-          </select>
-          <select id="randType">
-            <option value="movie" selected>Movie</option>
-            <option value="tv">TV</option>
-          </select>
-          <select id="randGenre"><option value="">Any genre</option></select>
-          <button id="randGo" title="Pick something for me">🎲 Randomize</button>
+      <section class="card span-6" aria-labelledby="macrosTitle">
+        <span class="pill">Macros</span>
+        <h3 id="macrosTitle">Hands-free workflows</h3>
+        <p>Chain actions across your apps: launch, mute, record, save, and share in a single tap.</p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button class="cta" data-action="macro:RecordSession">Start Recording</button>
+          <button class="cta secondary" data-action="macro:PublishClip">Publish Clip</button>
         </div>
-        <div class="small">Choose a service, type, and (optional) genre — then hit Randomize.</div>
+      </section>
 
-        <div id="randomResult" class="results"></div>
-        <div id="searchResults" class="results"></div>
-      </div>
-    </section>
-
-    <!-- BY SERVICE -->
-    <section id="service" class="panel">
-      <div class="card">
-        <div class="row" style="margin-bottom:10px">
-          <select id="servicePicker">
-            <option>Netflix</option><option>Hulu</option><option>Disney+</option><option>Max</option>
-            <option>Amazon Prime Video</option><option>Apple TV+</option><option>Peacock</option>
-            <option>Paramount+</option><option>Crunchyroll</option>
-          </select>
-          <select id="serviceType">
-            <option value="movie" selected>Movies</option>
-            <option value="tv">TV</option>
-          </select>
-          <select id="serviceGenre"><!-- filled on load --></select>
-          <input id="serviceQuery" type="search" placeholder="Optional: filter by title…">
-          <button id="serviceGo">Search This Service</button>
+      <section class="card span-4" aria-labelledby="mediaTitle">
+        <span class="pill">Media</span>
+        <h3 id="mediaTitle">Quick media controls</h3>
+        <p>Play, pause, skip, capture screenshots, and drop markers on the timeline.</p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button class="cta" data-action="media:PlayPause">Play/Pause</button>
+          <button class="cta secondary" data-action="media:Marker">Add Marker</button>
         </div>
-        <div class="small">Filters titles available on the selected service in your region (US). Combine with type + genre.</div>
-        <div id="serviceResults" class="results"></div>
-      </div>
-    </section>
+      </section>
 
-    <!-- GENRES -->
-    <section id="genres" class="panel">
-      <div class="card">
-        <div class="row" style="margin-bottom:10px">
-          <select id="genreType">
-            <option value="movie" selected>Movies</option>
-            <option value="tv">TV</option>
-          </select>
+      <section class="card span-4" aria-labelledby="systemTitle">
+        <span class="pill">System</span>
+        <h3 id="systemTitle">System actions</h3>
+        <p>Launch apps, open URLs, set volume, and trigger shortcuts.</p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button class="cta" data-action="system:OpenOBS">Open OBS</button>
+          <button class="cta secondary" data-action="system:ToggleMute">Toggle Mute</button>
         </div>
-        <div id="genreChips" class="chips"></div>
-        <div id="genreResults" class="results"></div>
-        <div class="note">Tap a genre to load popular titles. Switch Movies/TV to refresh the list.</div>
-      </div>
-    </section>
+      </section>
 
-    <!-- ACTORS -->
-    <section id="actors" class="panel">
-      <div class="card">
-        <div class="row" style="margin-bottom:10px">
-          <input id="actorQuery" type="text" placeholder="Search for an actor… (e.g., Tom Hanks)">
-          <button id="actorGo">Find Actor</button>
+      <section class="card span-4" aria-labelledby="settingsTitle">
+        <span class="pill">Settings</span>
+        <h3 id="settingsTitle">Preferences</h3>
+        <p>Customize keys, LED colors, hold-to-repeat, and per-profile layouts.</p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button class="cta" data-action="settings:Open">Open Settings</button>
         </div>
-        <div id="actorList" class="results" style="grid-template-columns:repeat(auto-fit,minmax(260px,1fr))"></div>
-        <div id="actorBreakdowns" style="margin-top:14px"></div>
-      </div>
-    </section>
+      </section>
+    </main>
 
-    <div class="note">Provider buttons open the service with the title pre-searched (using year to disambiguate). Availability varies by region/account.</div>
+    <footer>
+      Pro tip: press <span class="kbd">/</span> to open quick actions.
+    </footer>
   </div>
 
   <script>
-    /* ====== CONFIG / HELPERS ====== */
-    const TMDB_TOKEN = "eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiI2NGIzNmM0ZDNjODJlMmRiYzIyNjQzOTNhZjFlZTU2YyIsIm5iZiI6MTc1Njc2NTU2NS4zNzY5OTk5LCJzdWIiOiI2OGI2MWQ3ZDM1MGMzZWVlZTViNGZhZTQiLCJzY29wZXMiOlsiYXBpX3JlYWQiXSwidmVyc2lvbiI6MX0.hdDZK83KYkHjo_zpD0SHKH0K86IeLkwIiBpWVmOzgww";
-    const TMDB_BASE = "https://api.themoviedb.org/3";
-    const TMDB_IMG  = "https://image.tmdb.org/t/p";
-    const REGION = "US";
-    const auth = { headers: { Authorization: `Bearer ${TMDB_TOKEN}`, Accept: "application/json" } };
+    /**
+     * Replace the items below with your real data.
+     * cover: full image URL (e.g., /covers/tt123456.jpg or TMDB/OMDb CDN)
+     * href: internal link to that movie’s page on your site (e.g., /movie/tt123456)
+     */
+    const movies = [
+      { title:'Example One', cover:'https://images.unsplash.it/photo-1524985069026-dd778a71c7b4?w=600', href:'/movie/example-one' },
+      { title:'Example Two', cover:'https://images.unsplash.it/photo-1535016120720-40c646be5580?w=600', href:'/movie/example-two' },
+      { title:'Example Three', cover:'https://images.unsplash.it/photo-1498709112912-9be3173d30b9?w=600', href:'/movie/example-three' },
+      { title:'Example Four', cover:'https://images.unsplash.it/photo-1517602302552-471fe67acf66?w=600', href:'/movie/example-four' },
+      { title:'Example Five', cover:'https://images.unsplash.it/photo-1517601643596-21b7f85c2b53?w=600', href:'/movie/example-five' },
+      { title:'Example Six', cover:'https://images.unsplash.it/photo-1497032628192-86f99bcd76bc?w=600', href:'/movie/example-six' },
+      // Add as many as you like…
+    ];
 
-    const poster = (p, size="w342") => p ? `${TMDB_IMG}/${size}${p}` : "https://via.placeholder.com/140x210?text=No+Image";
-    const smallPoster = (p) => p ? `${TMDB_IMG}/w185${p}` : "https://via.placeholder.com/100x150?text=No+Image";
-    const yearOf = (d) => d ? (d.split("-")[0]||"") : "";
-    const safe = (s) => (s||"").replace(/</g,"&lt;").replace(/>/g,"&gt;");
-    const norm = (name) => (name||"").replace(/\s*\+\s*/g,"+").replace(/ plus$/i,"+").replace(/\s+/g," ").trim();
+    // ========== Build Mosaic ==========
+    const mosaicEl = document.getElementById('mosaic');
 
-    /* ====== Provider deep links ====== */
-    function providerDomainGuess(n){
-      if (n==="Netflix") return "netflix.com";
-      if (n==="Hulu") return "hulu.com";
-      if (n==="Disney+") return "disneyplus.com";
-      if (n==="Peacock") return "peacocktv.com";
-      if (n==="Paramount+") return "paramountplus.com";
-      if (n==="Crunchyroll") return "crunchyroll.com";
-      if (n==="Amazon Prime Video") return "amazon.com";
-      if (n==="Apple TV+") return "tv.apple.com";
-      if (n==="Max") return "max.com";
-      return (n.toLowerCase().replace(/\s+/g,'') + ".com");
-    }
-    function providerTitleURL(providerName, title, year){
-      const n = norm(providerName), q = encodeURIComponent(`${title} ${year||""}`.trim());
-      if (n==="Netflix") return `https://www.netflix.com/search?q=${q}`;
-      if (n==="Hulu") return `https://www.hulu.com/search?q=${q}`;
-      if (n==="Disney+") return `https://www.disneyplus.com/search?q=${q}`;
-      if (n==="Peacock") return `https://www.peacocktv.com/search?q=${q}`;
-      if (n==="Paramount+") return `https://www.paramountplus.com/search/?q=${q}`;
-      if (n==="Crunchyroll") return `https://www.crunchyroll.com/search?from=&q=${q}`;
-      if (n==="Amazon Prime Video") return `https://www.amazon.com/s?k=${q}&i=instant-video`;
-      if (n==="Apple TV+") return `https://tv.apple.com/us/search?term=${q}`;
-      if (n==="Max") return `https://www.google.com/search?btnI=1&q=${encodeURIComponent(`site:max.com "${title}" ${year||""}`)}`;
-      return `https://www.google.com/search?btnI=1&q=${encodeURIComponent(`site:${providerDomainGuess(n)} "${title}" ${year||""}`)}`;
-    }
+    // Aim to fill screen + buffer with tiles
+    const columns = getComputedStyle(mosaicEl).gridTemplateColumns.split(' ').length;
+    const rowHeight = parseInt(getComputedStyle(mosaicEl).gridAutoRows, 10) || 160;
+    const rows = Math.ceil((window.innerHeight * 1.2) / rowHeight) + 2; // buffer
+    const tileCount = Math.max(columns * rows, 48);
 
-    /* ====== TMDB Provider logos (crisp with srcset) ====== */
-    function providerLogoImg(provider){
-      const name = provider.provider_name || "Provider";
-      const lp   = provider.logo_path || "";
-      if (lp){
-        const src1x = `${TMDB_IMG}/w92${lp}`;
-        const src2x = `${TMDB_IMG}/w154${lp}`; // retina
-        return `
-          <img class="logoImg"
-               src="${src1x}"
-               srcset="${src1x} 1x, ${src2x} 2x"
-               sizes="40px"
-               alt="${safe(name)} logo"
-               loading="lazy"
-               decoding="async">
-        `;
-      } else {
-        const initials = name.split(/\s+/).map(w=>w[0]).join("").slice(0,3).toUpperCase();
-        return `<span style="font-weight:900;color:#fff;letter-spacing:.02em;font-size:.9rem">${initials}</span>`;
-      }
+    // Repeat movies to fill the grid
+    const pool = [];
+    for (let i = 0; i < tileCount; i++) pool.push(movies[i % movies.length]);
+
+    function makeTile(item, idx){
+      const a = document.createElement('a');
+      a.className = 'tile';
+      a.href = item.href;
+      a.setAttribute('aria-label', `${item.title}`);
+      a.title = item.title;
+      a.target = '_self';
+      a.rel = 'noopener';
+
+      const img = document.createElement('img');
+      img.loading = 'lazy';
+      img.decoding = 'async';
+      img.src = item.cover;
+
+      const label = document.createElement('div');
+      label.className = 'label';
+      label.textContent = item.title;
+
+      a.appendChild(img);
+      a.appendChild(label);
+      return a;
     }
 
-    /* ====== Tiles & buttons ====== */
-    function providerButtons(title, year, provUS){
-      const combined = [...(provUS.flatrate||[]), ...(provUS.buy||[]), ...(provUS.rent||[])];
-      const seen = new Set();
-      const btns = [];
-      combined.forEach(p=>{
-        const raw = (p.provider_name||"").trim();
-        const key = raw.toLowerCase();
-        if(seen.has(key)) return; seen.add(key);
-        const url = providerTitleURL(raw, title, year);
-        btns.push(`
-          <a class="logoLink" target="_blank" rel="noopener" href="${url}" title="Open on ${safe(raw)}">
-            ${providerLogoImg(p)}
-          </a>
-        `);
-      });
-      if (!btns.length) {
-        btns.push(`
-          <a class="logoLink" target="_blank" rel="noopener"
-             href="https://www.google.com/search?q=${encodeURIComponent(`"${title}" ${year||""} watch`) }"
-             title="Find streaming options">
-            <span style="font-weight:900;color:#fff">?</span>
-          </a>
-        `);
-      }
-      return `<div class="logoLinks">${btns.join("")}</div>`;
-    }
-    function resultTile(item, prov){
-      const title = item.title || item.name || "Untitled";
-      const media = item.media_type || (item.first_air_date ? "tv" : "movie");
-      const y = yearOf(item.release_date || item.first_air_date);
-      const us = prov?.results?.[REGION] || {};
-      return `
-        <div class="tile">
-          <img src="${smallPoster(item.poster_path)}" alt="">
-          <div class="meta">
-            <div class="title">${safe(title)}</div>
-            <div class="sub">${media.toUpperCase()} ${y ? "· "+y : ""}</div>
-            <div class="providers">${
-              (us.flatrate||[]).length ? us.flatrate.map(p=>`<span class="chip">${safe(p.provider_name)}</span>`).join("")
-                                       : `<span class="chip">No subscription info</span>`
-            }</div>
-            <div class="links">
-              ${us.link ? `<a class="linkbtn" target="_blank" rel="noopener" href="${us.link}">Watch options</a>` : ""}
-            </div>
-            ${providerButtons(title, y, us)}
-          </div>
-        </div>`;
-    }
+    pool.forEach((m, i)=> mosaicEl.appendChild(makeTile(m, i)));
 
-    /* ====== API helpers ====== */
-    async function getJSON(url){
-      const r = await fetch(url, auth);
-      if(!r.ok) throw new Error(`HTTP ${r.status}`);
-      return r.json();
-    }
-    async function getProviders(id, media){
-      return getJSON(`${TMDB_BASE}/${media}/${id}/watch/providers`);
-    }
+    // Rotate a few random tiles every few seconds for motion
+    function replaceRandomTile(){
+      const tiles = mosaicEl.querySelectorAll('.tile');
+      if(!tiles.length) return;
+      const idx = Math.floor(Math.random() * tiles.length);
+      const tile = tiles[idx];
+      const next = movies[Math.floor(Math.random() * movies.length)];
+      const img = tile.querySelector('img');
+      const label = tile.querySelector('.label');
 
-    /* ====== SEARCH ====== */
-    async function doSearch(){
-      const q = document.getElementById("q").value.trim();
-      if(!q) return;
-      const type = document.getElementById("searchType").value;
-      const out = document.getElementById("searchResults");
-      out.innerHTML = "<div class='small'>Searching…</div>";
-      const endpoint = type==="movie"?"search/movie":type==="tv"?"search/tv":"search/multi";
-      try{
-        const data = await getJSON(`${TMDB_BASE}/${endpoint}?query=${encodeURIComponent(q)}&include_adult=false`);
-        out.innerHTML = "";
-        const items = (data.results||[]).filter(x => (x.title||x.name) && (x.media_type!=="person"));
-        if(!items.length){ out.innerHTML = "<div class='small'>No results.</div>"; return; }
-        for(const it of items){
-          const media = it.media_type || (it.first_air_date ? "tv" : "movie");
-          const prov = await getProviders(it.id, media);
-          out.insertAdjacentHTML("beforeend", resultTile(it, prov));
-        }
-      }catch(e){
-        out.innerHTML = "<div class='small'>Search failed. Please try again.</div>";
-      }
+      // Fade swap
+      tile.style.transition = 'opacity .5s ease';
+      tile.style.opacity = '0.2';
+      setTimeout(()=>{
+        img.src = next.cover;
+        label.textContent = next.title;
+        tile.href = next.href;
+        tile.setAttribute('aria-label', next.title);
+        tile.style.opacity = '1';
+      }, 250);
+      setTimeout(()=>{ tile.style.transition = ''; }, 600);
     }
+    setInterval(replaceRandomTile, 1500);
 
-    /* ====== GENRES ====== */
-    async function loadGenres(){
-      try{
-        const [gm, gt] = await Promise.all([
-          getJSON(`${TMDB_BASE}/genre/movie/list`),
-          getJSON(`${TMDB_BASE}/genre/tv/list`)
-        ]);
-        window.__genres = { movie:(gm.genres||[]), tv:(gt.genres||[]) };
-        renderGenreChips();
-        seedRandomGenreSelects();
-        populateServiceGenres();
-      }catch(e){
-        document.getElementById("genreChips").innerHTML = "<div class='small'>Failed to load genres.</div>";
-      }
-    }
-    function renderGenreChips(){
-      const type = document.getElementById("genreType").value;
-      const holder = document.getElementById("genreChips");
-      holder.innerHTML = "";
-      (window.__genres?.[type] || []).forEach(g=>{
-        const b = document.createElement("button");
-        b.className = "gchip";
-        b.textContent = g.name;
-        b.addEventListener("click", ()=>{
-          [...holder.children].forEach(c=>c.classList.remove("active"));
-          b.classList.add("active");
-          discoverByGenre(type, g.id);
-        });
-        holder.appendChild(b);
-      });
-    }
-    async function discoverByGenre(type, genreId){
-      const out = document.getElementById("genreResults");
-      out.innerHTML = "<div class='small'>Loading…</div>";
-      try{
-        const data = await getJSON(`${TMDB_BASE}/discover/${type}?with_genres=${genreId}&sort_by=popularity.desc`);
-        out.innerHTML = "";
-        for(const it of (data.results||[])){
-          const prov = await getProviders(it.id, type);
-          out.insertAdjacentHTML("beforeend", resultTile({...it, media_type:type}, prov));
-        }
-      }catch(e){
-        out.innerHTML = "<div class='small'>Couldn’t load titles for that genre.</div>";
-      }
-    }
-    document.getElementById("genreType").addEventListener("change", ()=>{
-      renderGenreChips();
-      document.getElementById("genreResults").innerHTML = "";
+    // Recompute grid on resize (simple approach: rebuild)
+    let resizeTimer;
+    window.addEventListener('resize', ()=>{
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(()=>{
+        mosaicEl.innerHTML = '';
+        const columns = getComputedStyle(mosaicEl).gridTemplateColumns.split(' ').length;
+        const rowHeight = parseInt(getComputedStyle(mosaicEl).gridAutoRows, 10) || 160;
+        const rows = Math.ceil((window.innerHeight * 1.2) / rowHeight) + 2;
+        const count = Math.max(columns * rows, 48);
+        const pool = [];
+        for (let i = 0; i < count; i++) pool.push(movies[i % movies.length]);
+        pool.forEach((m, i)=> mosaicEl.appendChild(makeTile(m, i)));
+      }, 200);
     });
 
-    /* ====== BY SERVICE ====== */
-    let provLoaded = false;
-    async function loadProviderIds(){
-      if (provLoaded) return;
-      const [pm, pt] = await Promise.all([
-        getJSON(`${TMDB_BASE}/watch/providers/movie?watch_region=${REGION}`),
-        getJSON(`${TMDB_BASE}/watch/providers/tv?watch_region=${REGION}`)
-      ]);
-      const mk = (arr)=>{ const m={}; (arr||[]).forEach(p=> m[norm(p.provider_name)] = p.provider_id); return m; };
-      window.__provMovie = mk(pm.results||[]);
-      window.__provTV = mk(pt.results||[]);
-      provLoaded = true;
-    }
-    function populateServiceGenres(){
-      const sel = document.getElementById("serviceGenre");
-      const prev = sel.value || "";
-      const type = document.getElementById("serviceType").value;
-      sel.innerHTML = "";
-      const optAny = document.createElement("option");
-      optAny.value = ""; optAny.textContent = "Any genre";
-      sel.appendChild(optAny);
-      (window.__genres?.[type]||[]).forEach(g=>{
-        const o = document.createElement("option"); o.value=g.id; o.textContent=g.name; sel.appendChild(o);
+    // ===== Foreground UI interactions (unchanged) =====
+    const toast = (msg) => {
+      const t = document.createElement('div');
+      t.textContent = msg;
+      Object.assign(t.style, {
+        position:'fixed', left:'50%', bottom:'22px', transform:'translateX(-50%)',
+        background:'rgba(0,0,0,.65)', color:'#fff', padding:'10px 14px',
+        borderRadius:'12px', border:'1px solid rgba(255,255,255,.15)',
+        backdropFilter:'blur(6px)', zIndex:9999
       });
-      if ([...sel.options].some(o=>o.value===prev)) sel.value = prev;
-    }
-    document.getElementById("serviceType").addEventListener("change", ()=>{
-      populateServiceGenres();
-      document.getElementById("serviceResults").innerHTML="";
+      document.body.appendChild(t);
+      setTimeout(()=>{ t.remove(); }, 1600);
+    };
+
+    document.querySelectorAll('[data-action]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const action = btn.getAttribute('data-action');
+        toast(`Triggered: ${action}`);
+      });
     });
 
-    async function doServiceSearch(){
-      await loadProviderIds();
-      const serviceName = norm(document.getElementById("servicePicker").value);
-      const type = document.getElementById("serviceType").value;
-      const genreId = document.getElementById("serviceGenre").value;
-      const textQ = document.getElementById("serviceQuery").value.trim().toLowerCase();
-      const out = document.getElementById("serviceResults");
-      out.innerHTML = `<div class='small'>Searching ${serviceName} ${type.toUpperCase()}…</div>`;
-      const provId = (type==="movie"?window.__provMovie:window.__provTV)[serviceName];
-      if(!provId){ out.innerHTML = `<div class='small'>Provider not supported for ${type.toUpperCase()} in ${REGION}.</div>`; return; }
-      try{
-        let url = `${TMDB_BASE}/discover/${type}?watch_region=${REGION}&with_watch_providers=${provId}&sort_by=popularity.desc`;
-        if (genreId) url += `&with_genres=${genreId}`;
-        const data = await getJSON(url);
-        let items = data.results||[];
-        if(textQ){ items = items.filter(x => (x.title||x.name||"").toLowerCase().includes(textQ)); }
-        out.innerHTML = "";
-        if(!items.length){ out.innerHTML = `<div class='small'>No results.</div>`; return; }
-        for(const it of items.slice(0,40)){
-          const prov = await getProviders(it.id, type);
-          out.insertAdjacentHTML("beforeend", resultTile({...it, media_type:type}, prov));
-        }
-      }catch(e){
-        out.innerHTML = `<div class='small'>Error searching this service.</div>`;
+    const homeBtn = document.getElementById('homeBtn');
+    homeBtn.addEventListener('click', ()=> toast('Home'));
+    homeBtn.addEventListener('keydown', (e)=>{ if(e.key==='Enter' || e.key===' ') { e.preventDefault(); homeBtn.click(); } });
+
+    window.addEventListener('keydown', (e)=>{
+      if(e.key === '/') {
+        e.preventDefault();
+        toast('Quick Actions… (wire this to your command palette)');
       }
-    }
-
-    /* ====== RANDOMIZER ====== */
-    function seedRandomGenreSelects(){
-      const sel = document.getElementById("randGenre");
-      const type = document.getElementById("randType").value;
-      sel.innerHTML = `<option value="">Any genre</option>`;
-      (window.__genres?.[type]||[]).forEach(g=>{
-        const o = document.createElement("option"); o.value=g.id; o.textContent=g.name; sel.appendChild(o);
-      });
-    }
-    document.getElementById("randType").addEventListener("change", seedRandomGenreSelects);
-
-    async function randomizePick(){
-      await loadProviderIds();
-      if(!window.__genres) await loadGenres();
-      const serviceName = norm(document.getElementById("randService").value);
-      const type = document.getElementById("randType").value;
-      const genreId = document.getElementById("randGenre").value;
-      const out = document.getElementById("randomResult");
-      out.innerHTML = "<div class='small'>Rolling the dice…</div>";
-      const provId = (type==="movie"?window.__provMovie:window.__provTV)[serviceName];
-      if(!provId){ out.innerHTML = `<div class='small'>That provider isn’t available for ${type.toUpperCase()} in ${REGION}.</div>`; return; }
-      try{
-        let base = `${TMDB_BASE}/discover/${type}?watch_region=${REGION}&with_watch_providers=${provId}&sort_by=popularity.desc`;
-        if (genreId) base += `&with_genres=${genreId}`;
-        const first = await getJSON(base + `&page=1`);
-        const totalPages = Math.max(1, Math.min((first?.total_pages||1), 25));
-        const randPage = 1 + Math.floor(Math.random()*totalPages);
-        const pageData = randPage===1 ? first : await getJSON(base + `&page=${randPage}`);
-        const list = pageData?.results || [];
-        if(!list.length){ out.innerHTML = `<div class='small'>Couldn’t find anything — try different filters.</div>`; return; }
-        const pick = list[Math.floor(Math.random()*list.length)];
-        const prov = await getProviders(pick.id, type);
-        out.innerHTML = resultTile({...pick, media_type:type}, prov);
-        out.scrollIntoView({behavior:"smooth", block:"start"});
-      }catch(e){
-        out.innerHTML = `<div class='small'>Randomize failed. Try again.</div>`;
-      }
-    }
-
-    /* ====== ACTORS ====== */
-    function isMainRole(c){ return typeof c.order === "number" ? c.order <= 5 : false; }
-    function splitRoles(credits){
-      const movies = (credits.cast||[]).filter(r => r.media_type === "movie");
-      const tvs    = (credits.cast||[]).filter(r => r.media_type === "tv");
-      const out = { movie:{main:[], appearances:[]}, tv:{main:[], appearances:[]} };
-      movies.forEach(r => (isMainRole(r) ? out.movie.main : out.movie.appearances).push(r));
-      tvs.forEach(r    => (isMainRole(r) ? out.tv.main    : out.tv.appearances   ).push(r));
-      ["movie","tv"].forEach(k=>{
-        out[k].main.sort((a,b)=>(b.popularity||0)-(a.popularity||0));
-        out[k].appearances.sort((a,b)=>(b.popularity||0)-(a.popularity||0));
-      });
-      return out;
-    }
-    async function renderActorBreakdowns(personId, personName){
-      const mount = document.getElementById("actorBreakdowns");
-      mount.innerHTML = `<div class='small'>Loading ${safe(personName)}’s roles…</div>`;
-      try{
-        const credits = await getJSON(`${TMDB_BASE}/person/${personId}/combined_credits?language=en-US`);
-        const split = splitRoles(credits);
-        const all = [...split.movie.main, ...split.movie.appearances, ...split.tv.main, ...split.tv.appearances].slice(0,72);
-        const cache = {};
-        await Promise.all(all.map(async it=>{
-          cache[`${it.media_type}-${it.id}`] = await getProviders(it.id, it.media_type);
-        }));
-        const grid = (items, media) => items.slice(0,24).map(it=>resultTile({...it, media_type:media}, cache[`${media}-${it.id}`]||{})).join("");
-        mount.innerHTML = `
-          <div class="section-title">Movies — Main roles</div>
-          <div class="results">${ grid(split.movie.main, "movie") }</div>
-          <div class="section-title">Movies — Appearances</div>
-          <div class="results">${ grid(split.movie.appearances, "movie") }</div>
-          <div class="section-title">TV — Main roles</div>
-          <div class="results">${ grid(split.tv.main, "tv") }</div>
-          <div class="section-title">TV — Appearances</div>
-          <div class="results">${ grid(split.tv.appearances, "tv") }</div>
-        `;
-      }catch(err){
-        mount.innerHTML = `<div class="small">Couldn’t load roles right now. Please try again.</div>`;
-      }
-    }
-    async function runActorSearch(query){
-      const list = document.getElementById("actorList");
-      const breakdowns = document.getElementById("actorBreakdowns");
-      if(!query){ list.innerHTML = ""; breakdowns.innerHTML = ""; return; }
-      list.innerHTML = "<div class='small'>Searching actors…</div>";
-      try{
-        const res = await getJSON(`${TMDB_BASE}/search/person?query=${encodeURIComponent(query)}&include_adult=false&language=en-US`);
-        const people = res.results || [];
-        list.innerHTML = ""; breakdowns.innerHTML = "";
-        if(!people.length){ list.innerHTML = "<div class='small'>No actors found.</div>"; return; }
-        people.slice(0,12).forEach(p=>{
-          const card = document.createElement("div");
-          card.className = "tile";
-          card.innerHTML = `
-            <img src="${smallPoster(p.profile_path)}" alt="">
-            <div class="meta">
-              <div class="title">${safe(p.name)}</div>
-              <div class="sub">${(p.known_for_department||'').toUpperCase()}</div>
-              <div class="small">${(p.known_for||[]).filter(x=>x.title||x.name).slice(0,2).map(x=>safe(x.title||x.name)).join(" • ")}</div>
-            </div>`;
-          card.addEventListener("click", ()=>renderActorBreakdowns(p.id, p.name));
-          list.appendChild(card);
-        });
-      }catch(err){
-        list.innerHTML = "<div class='small'>Actor search failed. Check your connection and try again.</div>";
-      }
-    }
-
-    /* ====== TABS / HOME ====== */
-    function activateTab(id){
-      document.querySelectorAll(".tabbtn").forEach(x=>x.classList.toggle("active", x.dataset.tab===id));
-      document.querySelectorAll(".panel").forEach(p=>p.classList.toggle("active", p.id===id));
-      window.scrollTo({top:0,behavior:"smooth"});
-    }
-
-    /* ====== EVENTS ====== */
-    document.querySelectorAll(".tabbtn").forEach(b=> b.addEventListener("click", ()=>{ activateTab(b.dataset.tab); }));
-    document.getElementById("homeLogo").addEventListener("click", ()=>{
-      activateTab("search");
-      document.getElementById("q").value="";
-      document.getElementById("searchResults").innerHTML="";
-      document.getElementById("randomResult").innerHTML="";
     });
-
-    document.getElementById("go").addEventListener("click", doSearch);
-    document.getElementById("q").addEventListener("keydown", e=>{ if(e.key==="Enter") doSearch(); });
-
-    document.getElementById("genreType").addEventListener("change", renderGenreChips);
-
-    document.getElementById("serviceGo").addEventListener("click", doServiceSearch);
-    document.getElementById("serviceType").addEventListener("change", populateServiceGenres);
-    document.getElementById("serviceQuery").addEventListener("keydown", e=>{ if(e.key==="Enter") doServiceSearch(); });
-
-    document.getElementById("actorGo").addEventListener("click", ()=>runActorSearch(document.getElementById("actorQuery").value.trim()));
-    document.getElementById("actorQuery").addEventListener("keydown", e=>{ if(e.key==="Enter") runActorSearch(e.target.value.trim()); });
-
-    document.getElementById("randGo").addEventListener("click", randomizePick);
-    document.getElementById("randType").addEventListener("change", seedRandomGenreSelects);
-
-    /* ====== INIT ====== */
-    loadGenres();
-    (async()=>{ await loadProviderIds(); })(); // warm provider maps
-  </script>
-
-  <!-- Optional PWA SW (safe to keep). Bump version if updating cached assets -->
-  <script>
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js?v=stable-all-features-v1').catch(()=>{});
-    }
   </script>
 </body>
 </html>
